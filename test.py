@@ -46,7 +46,7 @@ def test(args):
             model = fcn8s(n_classes=n_classes)
             vgg16 = models.vgg16(pretrained=True)
             model.init_vgg16_params(vgg16)     
-            state = (torch.load(args.model_path)["model_state"])
+            state = (torch.load(args.seg_model_path)["model_state"])
             model.load_state_dict(state)
             model.eval()
             model.to(device)
