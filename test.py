@@ -7,6 +7,8 @@ import glob
 import torchvision.models as models
 from fcn_model import fcn8s
 import cityscapes_seg_loader as sloader
+from gan_model import ExPGenerator
+
 def test(args):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
  
@@ -55,16 +57,46 @@ def test(args):
             images = img.to(device)
     #make predictions
             outputs = model(images)
-            pred = np.squeeze(outputs.data.max(1)[1].cpu().numpy(), axis=0)
-            
-            decoded = loader.decode_segmap(pred)
-
+            pred = np.squeeze(outputs.data.max(1)[1].cpu().numpy(), axis=0)           
+            decoded = loader.decode_segmap(pred) #returns rgb version of the label numbers
             print("Classes found: ", np.unique(pred))
             if not os.path.exists(args.out_path + "/segoutputs"):
                 os.mkdir(os.path.join(os.getcwd(),args.out_path) + "/segoutputs")
             misc.imsave(args.out_path + "/segoutputs/" + file_root + "_pred.png", decoded)
-            print("Segmentation Mask Saved at: {}".format(args.out_path + "/segoutputs"))
-    
+            print("Segmentation mask saved at: {}".format(args.out_path + "/segoutputs"))
+    #downsample and crop images and segmentations for outpainting
+            img_resized= misc.imresize(img, (256,512))
+            label_resized= misc.imresize(label, (256,512))                
+            img_crop= img_resized[:,:,128:384]
+            label_crop=label_resized[:,128:384]
+            seg_resized= misc.imresize(pred, (256,512))
+            seg_crop= seg_resized[:, 128:384]
+
+    #Load generator to generate images
+            generator_G= ExPGenerator()
+            state = (torch.load(args.seg_model_path)["model_state"])
+            model.load_state_dict(state)
+            model.eval()
+            model.to(device)
+
+    #perform generation
+            img_resized = img_resized.cuda()
+            seg_resized = seg_resized.cuda()
+            img_crop = img_crop.cuda()
+            seg_crop = seg_crop.cuda()
+
+            orj_left = img_resized[:,:, 0:128]
+            orj_right = img_resized[:,:, -128:]
+
+            gen_fake_left, gen_fake_right, gen_fake_seg = generator_G(img_crop, seg_crop)
+            generated= torch.cat((gen_fake_left, img_crop, gen_fake_right), dim=3)
+
+    #save generated images 
+            if not os.path.exists(args.out_path + "/genoutputs"):
+                os.mkdir(os.path.join(os.getcwd(),args.out_path) + "/genoutputs")
+            misc.imsave(args.out_path + "/genoutputs/" + file_root + "_gen.png", generated)
+            print("Outpainted image saved at: {}".format(args.out_path + "/genoutputs"))
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Params")
@@ -72,14 +104,14 @@ if __name__ == "__main__":
         "--seg_model_path",
         nargs="?",
         type=str,
-        default="fcn8s_cityscapes_best_model.pkl",
+        default="runs/.../.../fcn8s_cityscapes_best_model.pkl",
         help="Path to the saved seg model",
     )
     parser.add_argument(
         "--gen_model_path",
         nargs="?",
         type=str,
-        default="fcn8s_pascal_1_26.pkl",
+        default="runs/...",
         help="Path to the saved seg model",
     )
 
