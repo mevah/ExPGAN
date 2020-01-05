@@ -263,7 +263,12 @@ for epoch in range(opt.num_epochs):
             optimizer_G.zero_grad()
             #print(torch.squeeze(gen_fake_seg).shape)
             #print(torch.squeeze(masked_target).shape)
+            
+            #print('SHAPE:')
+            #print('gen_fake_seg', torch.squeeze(gen_fake_seg).shape)
+            #print('masked_target_before_max', torch.squeeze(masked_target).shape)
             _, masked_target = masked_target.max(dim=1)
+            #print('masked_target_after_max', torch.squeeze(masked_target).shape)
             #nn.CrossEntropyLoss()(out, Variable(targets))
             #print(torch.squeeze(gen_fake_seg).shape)
             #print(torch.squeeze(masked_target).shape)
@@ -328,10 +333,9 @@ for epoch in range(opt.num_epochs):
         optimizer_G.zero_grad()
         #print(torch.squeeze(gen_fake_seg).shape)
         #print(torch.squeeze(masked_target).shape)
+
         _, masked_target = masked_target.max(dim=1)
         #nn.CrossEntropyLoss()(out, Variable(targets))
-        #print(torch.squeeze(gen_fake_seg).shape)
-        #print(torch.squeeze(masked_target).shape)
         loss_seg = nn.CrossEntropyLoss()(torch.squeeze(gen_fake_seg), torch.squeeze(masked_target))
 
         #loss_seg = F.cross_entropy(torch.squeeze(gen_fake_seg), torch.squeeze(masked_target))
@@ -358,8 +362,10 @@ for epoch in range(opt.num_epochs):
     losses = write_losses(loss, loss_seg,loss_D_left,loss_D_right,loss_recon_left,loss_recon_right)
     log_tbx(writers, "val", batch, outputs, losses, total_step)
 
-    if best_val_loss is None or total_loss < best_val_loss: 
+    if best_val_loss is None or val_loss < best_val_loss: 
+        best_val_loss = val_loss
         save_model(left_D, right_D, generator_G)
+
 # log
 
 

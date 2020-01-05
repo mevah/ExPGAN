@@ -38,6 +38,9 @@ class CS_Dataset(torchvision.datasets.Cityscapes):
     def __getitem__(self, index):
         inputs = {}
         loaded_img, loaded_sgmn = super(CS_Dataset, self).__getitem__(index)
+        #print('type: ', type(loaded_img)) #<class 'PIL.Image.Image'>
+        #print('Max val: ', np.max(np.asarray(loaded_img))) #255
+
         for ii in range(self.num_scales):
             inputs[("img", ii)] = self.resize[ii](loaded_img)
             inputs[("segm", ii)] = self.resize[ii](loaded_sgmn)
