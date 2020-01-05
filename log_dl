@@ -719,3 +719,57 @@ Traceback (most recent call last):
   File "/cluster/apps/python/3.7.1/x86_64/lib64/python3.7/threading.py", line 300, in wait
     gotit = waiter.acquire(True, timeout)
 KeyboardInterrupt
+Sender: LSF System <lsfadmin@lo-s4-078>
+Subject: Job 3738922: <python train_gan.py --dataset_folder /cluster/scratch/oezyurty/cityscapes_data --model_save mode_deneme --log_path model_deneme --log_frequency 20> in cluster <leonhard> Exited
+
+Job <python train_gan.py --dataset_folder /cluster/scratch/oezyurty/cityscapes_data --model_save mode_deneme --log_path model_deneme --log_frequency 20> was submitted from host <lo-login-01> by user <oezyurty> in cluster <leonhard> at Sun Jan  5 18:32:40 2020
+Job was executed on host(s) <8*lo-s4-078>, in queue <gpu.24h>, as user <oezyurty> in cluster <leonhard> at Sun Jan  5 18:32:48 2020
+</cluster/home/oezyurty> was used as the home directory.
+</cluster/scratch/oezyurty/ExPGAN> was used as the working directory.
+Started at Sun Jan  5 18:32:48 2020
+Terminated at Sun Jan  5 18:55:19 2020
+Results reported at Sun Jan  5 18:55:19 2020
+
+Your job looked like:
+
+------------------------------------------------------------
+# LSBATCH: User input
+python train_gan.py --dataset_folder /cluster/scratch/oezyurty/cityscapes_data --model_save mode_deneme --log_path model_deneme --log_frequency 20
+------------------------------------------------------------
+
+Exited with exit code 1.
+
+Resource usage summary:
+
+    CPU time :                                   1351.97 sec.
+    Max Memory :                                 17161 MB
+    Average Memory :                             13845.70 MB
+    Total Requested Memory :                     327680.00 MB
+    Delta Memory :                               310519.00 MB
+    Max Swap :                                   -
+    Max Processes :                              4
+    Max Threads :                                18
+    Run time :                                   1355 sec.
+    Turnaround time :                            1359 sec.
+
+The output (if any) follows:
+
+cuda status:  True
+Switched to training mode
+##############################
+Epoch: 0
+Switched to eval mode
+/cluster/home/oezyurty/.virtualenvs/deep-learning/lib/python3.7/site-packages/torch/nn/functional.py:2494: UserWarning: Default upsampling behavior when mode=bilinear is changed to align_corners=False since 0.4.0. Please specify align_corners=True if the old behavior is desired. See the documentation of nn.Upsample for details.
+  "See the documentation of nn.Upsample for details.".format(mode))
+Epoch 0: validation_loss=627.8219213485718, best_validation_loss=None 
+Saving models to mode_deneme 
+Traceback (most recent call last):
+  File "train_gan.py", line 391, in <module>
+    save_model(left_D, right_D, generator_G)
+  File "train_gan.py", line 97, in save_model
+    os.path.join(opt.model_save, "model.pt"))
+  File "/cluster/home/oezyurty/.virtualenvs/deep-learning/lib/python3.7/site-packages/torch/serialization.py", line 260, in save
+    return _with_file_like(f, "wb", lambda f: _save(obj, f, pickle_module, pickle_protocol))
+  File "/cluster/home/oezyurty/.virtualenvs/deep-learning/lib/python3.7/site-packages/torch/serialization.py", line 183, in _with_file_like
+    f = open(f, mode)
+FileNotFoundError: [Errno 2] No such file or directory: 'mode_deneme/model.pt'
