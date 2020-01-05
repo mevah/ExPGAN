@@ -16,6 +16,10 @@ import math
 import os
 from tensorboardX import SummaryWriter
 
+
+
+
+
 ######## TRANSFORMS.TOTENSOR
 class CS_Dataset(torchvision.datasets.Cityscapes):
     def __init__(self,  root_folder='/cluster/scratch/oezyurty/cityscapes_data', split='train', mode='fine', target_type='semantic', transform=None, target_transform=None, transforms=None):
@@ -36,6 +40,8 @@ class CS_Dataset(torchvision.datasets.Cityscapes):
             #print(self.width // s)
 
     def __getitem__(self, index):
+        CITYSCAPES_MEAN = [0.28689554, 0.32513303, 0.28389177]
+        CITYSCAPES_STD = [0.18696375, 0.19017339, 0.18720214]
         inputs = {}
         loaded_img, loaded_sgmn = super(CS_Dataset, self).__getitem__(index)
         #print('type: ', type(loaded_img)) #<class 'PIL.Image.Image'>
@@ -45,7 +51,8 @@ class CS_Dataset(torchvision.datasets.Cityscapes):
             inputs[("img", ii)] = self.resize[ii](loaded_img)
             inputs[("segm", ii)] = self.resize[ii](loaded_sgmn)
         
-        inputs[("cropped")] = torchvision.transforms.ToTensor()(torchvision.transforms.CenterCrop((256,256))(inputs[("img", 0)])) 
+        
+        inputs[("cropped")] = torchvision.transforms.Normalize(mean=CITYSCAPES_MEAN, std=CITYSCAPES_STD)(torchvision.transforms.ToTensor()(torchvision.transforms.CenterCrop((256,256))(inputs[("img", 0)])))
         inputs[("cropped_segm")] = torchvision.transforms.ToTensor()(torchvision.transforms.CenterCrop((256,256))(inputs[("segm", 0)]))
 
        # inputs[("img_left")] = torchvision.transforms.ToTensor(np.array(inputs[("img",0)])[:,:-128,:]).float() 
@@ -55,7 +62,7 @@ class CS_Dataset(torchvision.datasets.Cityscapes):
         ##inputs[("img_right")] = Image.fromarray(inputs[("img_right")])
 
         for iii in range(self.num_scales):
-            inputs[("img", iii)] = torchvision.transforms.ToTensor()(inputs[("img", iii)] )
+            inputs[("img", iii)] = torchvision.transforms.Normalize(mean=CITYSCAPES_MEAN, std=CITYSCAPES_STD)(torchvision.transforms.ToTensor()(inputs[("img", iii)] ))
             inputs[("segm", iii)] = torchvision.transforms.ToTensor()(inputs[("segm", iii)])
 
             #print('denemece')

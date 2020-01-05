@@ -175,6 +175,18 @@ def add_noise(ins, is_training=True, mean=0, stddev=0.01):
 def mask_segm(full_segm, cropped_segm):
     return full_segm
 
+####Define weight matrix for segmentation loss
+mask_row = np.zeros((1,512))
+def sigmoid(start=0,end=128, c1=0.1,c2=0):
+    x = np.arange(start,end)
+    return (1 / (1 + np.exp(-1 * c1 * (x-c2))))    
+mask_row[0,0:128] = sigmoid(0,128,c2=64)
+mask_row[0,128:256] = 1-sigmoid(128,256,c2=192)
+mask_row[0,256:384] = sigmoid(256,384,c2=64)
+mask_row[0,384:512] =  1-sigmoid(384,512,c2=192)
+mask_tensor = torch.from_numpy(np.squeeze(mask_row)).float()
+
+
 total_step = 0
 mini_D_num_epochs = 1
 mini_G_num_epochs = 1
@@ -194,6 +206,10 @@ for epoch in range(opt.num_epochs):
     right_D.train()
     generator_G.train()
     for batch_idx, batch in enumerate(train_loader):
+        weight_segmentation = mask_tensor.repeat(batch['cropped'].size(0), 256, 1)
+        if cuda: 
+            weight_segmentation = weight_segmentation.cuda()
+
         #if batch_idx % 200 == 0:
         #    print('batch_idx: ',  batch_idx)
         #print('#'*20)
@@ -272,7 +288,10 @@ for epoch in range(opt.num_epochs):
             #nn.CrossEntropyLoss()(out, Variable(targets))
             #print(torch.squeeze(gen_fake_seg).shape)
             #print(torch.squeeze(masked_target).shape)
-            loss_seg = nn.CrossEntropyLoss()(torch.squeeze(gen_fake_seg), torch.squeeze(masked_target))
+
+            loss_seg = nn.CrossEntropyLoss(reduction='none')(torch.squeeze(gen_fake_seg), torch.squeeze(masked_target))
+            loss_seg = weight_segmentation*loss_seg # Ensure that weights are scaled appropriately
+            loss_seg = torch.mean(loss_seg) # Sums the loss per image
 
             #loss_seg = F.cross_entropy(torch.squeeze(gen_fake_seg), torch.squeeze(masked_target))
 
@@ -306,6 +325,9 @@ for epoch in range(opt.num_epochs):
     generator_G.eval()
     val_loss = 0
     for batch_idx, batch in enumerate(val_loader):
+        weight_segmentation = mask_tensor.repeat(batch['cropped'].size(0), 256, 1)
+        if cuda: 
+            weight_segmentation = weight_segmentation.cuda()
         #print('epoch_G: ', epoch_G)
         source_img = batch["cropped"]
         source_segm = batch["cropped_segm"]
@@ -336,7 +358,9 @@ for epoch in range(opt.num_epochs):
 
         _, masked_target = masked_target.max(dim=1)
         #nn.CrossEntropyLoss()(out, Variable(targets))
-        loss_seg = nn.CrossEntropyLoss()(torch.squeeze(gen_fake_seg), torch.squeeze(masked_target))
+        loss_seg = nn.CrossEntropyLoss(reduction='none')(torch.squeeze(gen_fake_seg), torch.squeeze(masked_target))
+        loss_seg = weight_segmentation*loss_seg # Ensure that weights are scaled appropriately
+        loss_seg = torch.mean(loss_seg) # Sums the loss per image
 
         #loss_seg = F.cross_entropy(torch.squeeze(gen_fake_seg), torch.squeeze(masked_target))
 
