@@ -193,6 +193,7 @@ class ExPGenerator(nn.Module):
         self.seg_up7 = UpBlock(32,3, kernel_size=7, padding=2, normalize=False)
         self.seg_up8 = nn.Upsample(size = im_size, mode='bilinear')
         self.seg_up9 = nn.ConvTranspose2d(3, seg_class_num, kernel_size=1)
+        self.seg_out = nn.Softmax(dim=1)
           #  nn.Linear(1024, int(np.prod(img_shape))),  # DUZELT
           #  nn.Tanh()                   # DUZELT
             
@@ -258,7 +259,8 @@ class ExPGenerator(nn.Module):
         seg_u6= self.seg_up6(seg_u5)
         seg_u7= self.seg_up7(seg_u6)
         seg_u8= self.seg_up8(seg_u7)
-        seg_out = self.seg_up9(seg_u8)
+        seg_out_bf_softmax = self.seg_up9(seg_u8)
+        seg_out = self.seg_out(seg_out_bf_softmax)
 
         return im_out_left , im_out_right, seg_out
 
