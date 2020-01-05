@@ -19,6 +19,8 @@ from tensorboardX import SummaryWriter
 from gan_model import CS_Dataset
 from gan_model import LeftDiscriminator, RightDiscriminator, ExPGenerator
 
+
+
 parser = argparse.ArgumentParser()
 parser.add_argument("--num_epochs", type=int, default=200, help="number of epochs of training")
 parser.add_argument("--batch_size", type=int, default=8, help="size of the batches")
