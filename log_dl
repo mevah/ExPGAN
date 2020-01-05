@@ -719,3 +719,274 @@ Traceback (most recent call last):
   File "/cluster/apps/python/3.7.1/x86_64/lib64/python3.7/threading.py", line 300, in wait
     gotit = waiter.acquire(True, timeout)
 KeyboardInterrupt
+Sender: LSF System <lsfadmin@lo-s4-029>
+Subject: Job 3737918: <python train_gan.py> in cluster <leonhard> Exited
+
+Job <python train_gan.py> was submitted from host <lo-login-01> by user <takmaza> in cluster <leonhard> at Sun Jan  5 12:54:24 2020
+Job was executed on host(s) <3*lo-s4-029>, in queue <gpu.4h>, as user <takmaza> in cluster <leonhard> at Sun Jan  5 12:54:35 2020
+</cluster/home/takmaza> was used as the home directory.
+</cluster/home/takmaza/ExPGAN> was used as the working directory.
+Started at Sun Jan  5 12:54:35 2020
+Terminated at Sun Jan  5 13:20:44 2020
+Results reported at Sun Jan  5 13:20:44 2020
+
+Your job looked like:
+
+------------------------------------------------------------
+# LSBATCH: User input
+python train_gan.py
+------------------------------------------------------------
+
+Exited with exit code 1.
+
+Resource usage summary:
+
+    CPU time :                                   1872.69 sec.
+    Max Memory :                                 14114 MB
+    Average Memory :                             11280.17 MB
+    Total Requested Memory :                     122880.00 MB
+    Delta Memory :                               108766.00 MB
+    Max Swap :                                   -
+    Max Processes :                              4
+    Max Threads :                                18
+    Run time :                                   1571 sec.
+    Turnaround time :                            1580 sec.
+
+The output (if any) follows:
+
+cuda status:  True
+Switched to training mode
+##############################
+Epoch: 0
+Switched to eval mode
+/cluster/home/takmaza/.virtualenvs/dsc-env/lib/python3.7/site-packages/torch/nn/functional.py:2494: UserWarning: Default upsampling behavior when mode=bilinear is changed to align_corners=False since 0.4.0. Please specify align_corners=True if the old behavior is desired. See the documentation of nn.Upsample for details.
+  "See the documentation of nn.Upsample for details.".format(mode))
+Epoch 0: validation_loss=743.2653017044067, best_validation_loss=None 
+Saving models to /cluster/scratch/takmaza/DL/project_extrapolation/model3 
+##############################
+Epoch: 1
+Traceback (most recent call last):
+  File "train_gan.py", line 269, in <module>
+    gen_fake_left, gen_fake_right, gen_fake_seg = generator_G(source_img, source_segm)
+  File "/cluster/home/takmaza/.virtualenvs/dsc-env/lib/python3.7/site-packages/torch/nn/modules/module.py", line 541, in __call__
+    result = self.forward(*input, **kwargs)
+  File "/cluster/home/takmaza/ExPGAN/gan_model.py", line 259, in forward
+    seg_u7= self.seg_up7(seg_u6)
+  File "/cluster/home/takmaza/.virtualenvs/dsc-env/lib/python3.7/site-packages/torch/nn/modules/module.py", line 541, in __call__
+    result = self.forward(*input, **kwargs)
+  File "/cluster/home/takmaza/ExPGAN/gan_model.py", line 138, in forward
+    out = self.block(x)
+  File "/cluster/home/takmaza/.virtualenvs/dsc-env/lib/python3.7/site-packages/torch/nn/modules/module.py", line 541, in __call__
+    result = self.forward(*input, **kwargs)
+  File "/cluster/home/takmaza/.virtualenvs/dsc-env/lib/python3.7/site-packages/torch/nn/modules/container.py", line 92, in forward
+    input = module(input)
+  File "/cluster/home/takmaza/.virtualenvs/dsc-env/lib/python3.7/site-packages/torch/nn/modules/module.py", line 541, in __call__
+    result = self.forward(*input, **kwargs)
+  File "/cluster/home/takmaza/.virtualenvs/dsc-env/lib/python3.7/site-packages/torch/nn/modules/upsampling.py", line 131, in forward
+    return F.interpolate(input, self.size, self.scale_factor, self.mode, self.align_corners)
+  File "/cluster/home/takmaza/.virtualenvs/dsc-env/lib/python3.7/site-packages/torch/nn/functional.py", line 2518, in interpolate
+    return torch._C._nn.upsample_bilinear2d(input, _output_size(2), align_corners)
+RuntimeError: CUDA out of memory. Tried to allocate 126.00 MiB (GPU 0; 7.93 GiB total capacity; 7.27 GiB already allocated; 24.56 MiB free; 111.96 MiB cached)
+Sender: LSF System <lsfadmin@lo-s4-050>
+Subject: Job 3738520: <python train_gan.py> in cluster <leonhard> Exited
+
+Job <python train_gan.py> was submitted from host <lo-login-01> by user <takmaza> in cluster <leonhard> at Sun Jan  5 16:01:57 2020
+Job was executed on host(s) <6*lo-s4-050>, in queue <gpu.4h>, as user <takmaza> in cluster <leonhard> at Sun Jan  5 16:02:11 2020
+</cluster/home/takmaza> was used as the home directory.
+</cluster/home/takmaza/ExPGAN> was used as the working directory.
+Started at Sun Jan  5 16:02:11 2020
+Terminated at Sun Jan  5 16:24:22 2020
+Results reported at Sun Jan  5 16:24:22 2020
+
+Your job looked like:
+
+------------------------------------------------------------
+# LSBATCH: User input
+python train_gan.py
+------------------------------------------------------------
+
+Exited with exit code 1.
+
+Resource usage summary:
+
+    CPU time :                                   1688.26 sec.
+    Max Memory :                                 16874 MB
+    Average Memory :                             13230.87 MB
+    Total Requested Memory :                     245760.00 MB
+    Delta Memory :                               228886.00 MB
+    Max Swap :                                   -
+    Max Processes :                              4
+    Max Threads :                                18
+    Run time :                                   1359 sec.
+    Turnaround time :                            1345 sec.
+
+The output (if any) follows:
+
+cuda status:  True
+Switched to training mode
+##############################
+Epoch: 0
+Switched to eval mode
+/cluster/home/takmaza/.virtualenvs/dsc-env/lib/python3.7/site-packages/torch/nn/functional.py:2494: UserWarning: Default upsampling behavior when mode=bilinear is changed to align_corners=False since 0.4.0. Please specify align_corners=True if the old behavior is desired. See the documentation of nn.Upsample for details.
+  "See the documentation of nn.Upsample for details.".format(mode))
+Epoch 0: validation_loss=642.4205484390259, best_validation_loss=None 
+Saving models to /cluster/scratch/takmaza/DL/project_extrapolation/model3 
+##############################
+Epoch: 1
+Traceback (most recent call last):
+  File "train_gan.py", line 269, in <module>
+    gen_fake_left, gen_fake_right, gen_fake_seg = generator_G(source_img, source_segm)
+  File "/cluster/home/takmaza/.virtualenvs/dsc-env/lib/python3.7/site-packages/torch/nn/modules/module.py", line 541, in __call__
+    result = self.forward(*input, **kwargs)
+  File "/cluster/home/takmaza/ExPGAN/gan_model.py", line 259, in forward
+    seg_u7= self.seg_up7(seg_u6)
+  File "/cluster/home/takmaza/.virtualenvs/dsc-env/lib/python3.7/site-packages/torch/nn/modules/module.py", line 541, in __call__
+    result = self.forward(*input, **kwargs)
+  File "/cluster/home/takmaza/ExPGAN/gan_model.py", line 138, in forward
+    out = self.block(x)
+  File "/cluster/home/takmaza/.virtualenvs/dsc-env/lib/python3.7/site-packages/torch/nn/modules/module.py", line 541, in __call__
+    result = self.forward(*input, **kwargs)
+  File "/cluster/home/takmaza/.virtualenvs/dsc-env/lib/python3.7/site-packages/torch/nn/modules/container.py", line 92, in forward
+    input = module(input)
+  File "/cluster/home/takmaza/.virtualenvs/dsc-env/lib/python3.7/site-packages/torch/nn/modules/module.py", line 541, in __call__
+    result = self.forward(*input, **kwargs)
+  File "/cluster/home/takmaza/.virtualenvs/dsc-env/lib/python3.7/site-packages/torch/nn/modules/upsampling.py", line 131, in forward
+    return F.interpolate(input, self.size, self.scale_factor, self.mode, self.align_corners)
+  File "/cluster/home/takmaza/.virtualenvs/dsc-env/lib/python3.7/site-packages/torch/nn/functional.py", line 2518, in interpolate
+    return torch._C._nn.upsample_bilinear2d(input, _output_size(2), align_corners)
+RuntimeError: CUDA out of memory. Tried to allocate 126.00 MiB (GPU 0; 7.93 GiB total capacity; 7.27 GiB already allocated; 24.56 MiB free; 111.96 MiB cached)
+Sender: LSF System <lsfadmin@lo-s4-078>
+Subject: Job 3738597: <python train_gan.py> in cluster <leonhard> Exited
+
+Job <python train_gan.py> was submitted from host <lo-login-01> by user <takmaza> in cluster <leonhard> at Sun Jan  5 16:32:56 2020
+Job was executed on host(s) <8*lo-s4-078>, in queue <gpu.4h>, as user <takmaza> in cluster <leonhard> at Sun Jan  5 16:33:10 2020
+</cluster/home/takmaza> was used as the home directory.
+</cluster/home/takmaza/ExPGAN> was used as the working directory.
+Started at Sun Jan  5 16:33:10 2020
+Terminated at Sun Jan  5 16:35:41 2020
+Results reported at Sun Jan  5 16:35:41 2020
+
+Your job looked like:
+
+------------------------------------------------------------
+# LSBATCH: User input
+python train_gan.py
+------------------------------------------------------------
+
+TERM_OWNER: job killed by owner.
+Exited with exit code 1.
+
+Resource usage summary:
+
+    CPU time :                                   173.20 sec.
+    Max Memory :                                 7712 MB
+    Average Memory :                             5426.14 MB
+    Total Requested Memory :                     327680.00 MB
+    Delta Memory :                               319968.00 MB
+    Max Swap :                                   -
+    Max Processes :                              4
+    Max Threads :                                18
+    Run time :                                   180 sec.
+    Turnaround time :                            165 sec.
+
+The output (if any) follows:
+
+cuda status:  True
+Switched to training mode
+##############################
+Epoch: 0
+/cluster/home/takmaza/.virtualenvs/dsc-env/lib/python3.7/site-packages/torch/nn/functional.py:2494: UserWarning: Default upsampling behavior when mode=bilinear is changed to align_corners=False since 0.4.0. Please specify align_corners=True if the old behavior is desired. See the documentation of nn.Upsample for details.
+  "See the documentation of nn.Upsample for details.".format(mode))
+Traceback (most recent call last):
+  File "train_gan.py", line 312, in <module>
+    optimizer_G.step()
+  File "/cluster/home/takmaza/.virtualenvs/dsc-env/lib/python3.7/site-packages/torch/optim/adam.py", line 96, in step
+    exp_avg_sq.mul_(beta2).addcmul_(1 - beta2, grad, grad)
+KeyboardInterrupt
+Sender: LSF System <lsfadmin@lo-s4-082>
+Subject: Job 3738596: <python train_gan.py> in cluster <leonhard> Exited
+
+Job <python train_gan.py> was submitted from host <lo-login-01> by user <takmaza> in cluster <leonhard> at Sun Jan  5 16:32:48 2020
+Job was executed on host(s) <8*lo-s4-082>, in queue <gpu.24h>, as user <takmaza> in cluster <leonhard> at Sun Jan  5 16:33:10 2020
+</cluster/home/takmaza> was used as the home directory.
+</cluster/home/takmaza/ExPGAN> was used as the working directory.
+Started at Sun Jan  5 16:33:10 2020
+Terminated at Sun Jan  5 19:05:17 2020
+Results reported at Sun Jan  5 19:05:17 2020
+
+Your job looked like:
+
+------------------------------------------------------------
+# LSBATCH: User input
+python train_gan.py
+------------------------------------------------------------
+
+TERM_OWNER: job killed by owner.
+Exited with exit code 1.
+
+Resource usage summary:
+
+    CPU time :                                   10211.65 sec.
+    Max Memory :                                 19216 MB
+    Average Memory :                             17177.67 MB
+    Total Requested Memory :                     327680.00 MB
+    Delta Memory :                               308464.00 MB
+    Max Swap :                                   -
+    Max Processes :                              4
+    Max Threads :                                18
+    Run time :                                   9153 sec.
+    Turnaround time :                            9149 sec.
+
+The output (if any) follows:
+
+cuda status:  True
+Switched to training mode
+##############################
+Epoch: 0
+Switched to eval mode
+/cluster/home/takmaza/.virtualenvs/dsc-env/lib/python3.7/site-packages/torch/nn/functional.py:2494: UserWarning: Default upsampling behavior when mode=bilinear is changed to align_corners=False since 0.4.0. Please specify align_corners=True if the old behavior is desired. See the documentation of nn.Upsample for details.
+  "See the documentation of nn.Upsample for details.".format(mode))
+Epoch 0: validation_loss=506.28860807418823, best_validation_loss=None 
+Saving models to /cluster/scratch/takmaza/DL/project_extrapolation/model3 
+##############################
+Epoch: 1
+Switched to eval mode
+Epoch 1: validation_loss=717.5949354171753, best_validation_loss=506.28860807418823 
+##############################
+Epoch: 2
+Switched to eval mode
+Epoch 2: validation_loss=651.7265124320984, best_validation_loss=506.28860807418823 
+##############################
+Epoch: 3
+Switched to eval mode
+Epoch 3: validation_loss=184.49629640579224, best_validation_loss=506.28860807418823 
+Saving models to /cluster/scratch/takmaza/DL/project_extrapolation/model3 
+##############################
+Epoch: 4
+Switched to eval mode
+Epoch 4: validation_loss=772.1610021591187, best_validation_loss=184.49629640579224 
+##############################
+Epoch: 5
+Switched to eval mode
+Epoch 5: validation_loss=578.9107060432434, best_validation_loss=184.49629640579224 
+##############################
+Epoch: 6
+Switched to eval mode
+Epoch 6: validation_loss=169.15116572380066, best_validation_loss=184.49629640579224 
+Saving models to /cluster/scratch/takmaza/DL/project_extrapolation/model3 
+##############################
+Epoch: 7
+Traceback (most recent call last):
+  File "train_gan.py", line 208, in <module>
+    for batch_idx, batch in enumerate(train_loader):
+  File "/cluster/home/takmaza/.virtualenvs/dsc-env/lib/python3.7/site-packages/torch/utils/data/dataloader.py", line 804, in __next__
+    idx, data = self._get_data()
+  File "/cluster/home/takmaza/.virtualenvs/dsc-env/lib/python3.7/site-packages/torch/utils/data/dataloader.py", line 761, in _get_data
+    success, data = self._try_get_data()
+  File "/cluster/home/takmaza/.virtualenvs/dsc-env/lib/python3.7/site-packages/torch/utils/data/dataloader.py", line 724, in _try_get_data
+    data = self._data_queue.get(timeout=timeout)
+  File "/cluster/apps/python/3.7.1/x86_64/lib64/python3.7/queue.py", line 179, in get
+    self.not_empty.wait(remaining)
+  File "/cluster/apps/python/3.7.1/x86_64/lib64/python3.7/threading.py", line 300, in wait
+    gotit = waiter.acquire(True, timeout)
+KeyboardInterrupt

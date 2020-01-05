@@ -37,7 +37,7 @@ parser.add_argument("--clip_value", type=float, default=0.01, help="lower and up
 parser.add_argument("--sample_interval", type=int, default=400, help="interval betwen image samples")
 parser.add_argument("--dataset_folder", type=str, default='/cluster/scratch/takmaza/DL', help="dataset folder, directory which includes left8bit and gtFine folders")
 parser.add_argument("--model_save", type=str, default='/cluster/scratch/takmaza/DL/project_extrapolation/model3', help='specify the directory to save models')
-parser.add_argument("--log_frequency", type=int, default=100, help="log frequency in terms of steps")
+parser.add_argument("--log_frequency", type=int, default=20, help="log frequency in terms of steps")
 parser.add_argument("--log_path", type=str, default='/cluster/scratch/takmaza/DL/model3')
 parser.add_argument("--logfile_name", type=str, default='logs.txt')
 
