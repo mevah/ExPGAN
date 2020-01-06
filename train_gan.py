@@ -182,9 +182,11 @@ def sigmoid(start=0,end=128, c1=0.1,c2=0):
     return (1 / (1 + np.exp(-1 * c1 * (x-c2))))    
 mask_row[0,0:128] = sigmoid(0,128,c2=64)
 mask_row[0,128:256] = 1-sigmoid(128,256,c2=192)
-mask_row[0,256:384] = sigmoid(256,384,c2=64)
-mask_row[0,384:512] =  1-sigmoid(384,512,c2=192)
+mask_row[0,256:384] = sigmoid(256,384,c2=320)
+mask_row[0,384:512] =  1-sigmoid(384,512,c2=448)
 mask_tensor = torch.from_numpy(np.squeeze(mask_row)).float()
+mask_tensor_rec_left = torch.from_numpy(np.squeeze(mask_row[:,0:128])).float()
+mask_tensor_rec_right = torch.from_numpy(np.squeeze(mask_row[:,384:512])).float()
 
 
 total_step = 0
@@ -207,8 +209,13 @@ for epoch in range(opt.num_epochs):
     generator_G.train()
     for batch_idx, batch in enumerate(train_loader):
         weight_segmentation = mask_tensor.repeat(batch['cropped'].size(0), 256, 1)
+        weight_rec_left = mask_tensor_rec_left.repeat(batch['cropped'].size(0), 3, 256, 1)
+        weight_rec_right = mask_tensor_rec_right.repeat(batch['cropped'].size(0), 3, 256, 1)
+
         if cuda: 
             weight_segmentation = weight_segmentation.cuda()
+            weight_rec_left = weight_rec_left.cuda()
+            weight_rec_right = weight_rec_right.cuda()
 
         #if batch_idx % 200 == 0:
         #    print('batch_idx: ',  batch_idx)
@@ -244,7 +251,7 @@ for epoch in range(opt.num_epochs):
             loss_D_left.backward()
             optimizer_D_left.step()
 
-            lbl_est_right = right_D(left_imgs)
+            lbl_est_right = right_D(right_imgs)
             loss_D_right =adversarial_loss(torch.squeeze(lbl_est_right), torch.squeeze(lbls))
 
             optimizer_D_right.zero_grad()
@@ -300,8 +307,14 @@ for epoch in range(opt.num_epochs):
 
             #print(loss_seg.requires_grad)
                 
-            loss_recon_left = nn.MSELoss()(gen_fake_left, orj_left)
-            loss_recon_right = nn.MSELoss()(gen_fake_right, orj_right)
+            loss_recon_left = nn.MSELoss(reduction='none')(gen_fake_left, orj_left)
+            #print(loss_recon_left.shape)
+            #print(weight_rec_left.shape)
+            loss_recon_left = weight_rec_left*loss_recon_left # Ensure that weights are scaled appropriately
+            loss_recon_left = torch.mean(loss_recon_left) # Sums the loss per image
+            loss_recon_right = nn.MSELoss(reduction='none')(gen_fake_right, orj_right)
+            loss_recon_right = weight_rec_right*loss_recon_right # Ensure that weights are scaled appropriately
+            loss_recon_right = torch.mean(loss_recon_right) # Sums the loss per image
 
             #loss_recon_left = F.mse_loss(gen_fake_left, orj_left)
             #loss_recon_right = F.mse_loss(gen_fake_right, orj_right)
@@ -326,8 +339,14 @@ for epoch in range(opt.num_epochs):
     val_loss = 0
     for batch_idx, batch in enumerate(val_loader):
         weight_segmentation = mask_tensor.repeat(batch['cropped'].size(0), 256, 1)
+        weight_rec_left = mask_tensor_rec_left.repeat(batch['cropped'].size(0), 3, 256, 1)
+        weight_rec_right = mask_tensor_rec_right.repeat(batch['cropped'].size(0), 3, 256, 1)
+
         if cuda: 
             weight_segmentation = weight_segmentation.cuda()
+            weight_rec_left = weight_rec_left.cuda()
+            weight_rec_right = weight_rec_right.cuda()
+
         #print('epoch_G: ', epoch_G)
         source_img = batch["cropped"]
         source_segm = batch["cropped_segm"]
@@ -369,8 +388,12 @@ for epoch in range(opt.num_epochs):
 
         #print(loss_seg.requires_grad)
 
-        loss_recon_left = nn.MSELoss()(gen_fake_left, orj_left)
-        loss_recon_right = nn.MSELoss()(gen_fake_right, orj_right)
+        loss_recon_left = nn.MSELoss(reduction='none')(gen_fake_left, orj_left)
+        loss_recon_left = weight_rec_left*loss_recon_left # Ensure that weights are scaled appropriately
+        loss_recon_left = torch.mean(loss_recon_left) # Sums the loss per image
+        loss_recon_right = nn.MSELoss(reduction='none')(gen_fake_right, orj_right)
+        loss_recon_right = weight_rec_right*loss_recon_right # Ensure that weights are scaled appropriately
+        loss_recon_right = torch.mean(loss_recon_right) # Sums the loss per image
 
         #loss_recon_left = F.mse_loss(gen_fake_left, orj_left)
         #loss_recon_right = F.mse_loss(gen_fake_right, orj_right)
