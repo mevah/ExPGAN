@@ -1320,3 +1320,175 @@ Epoch 70: validation_loss=1239.6859226226807, best_validation_loss=205.004212856
 ##############################
 Epoch: 71
 User defined signal 2
+Sender: LSF System <lsfadmin@lo-s4-083>
+Subject: Job 3750871: <python train_gan.py> in cluster <leonhard> Exited
+
+Job <python train_gan.py> was submitted from host <lo-login-02> by user <takmaza> in cluster <leonhard> at Tue Jan  7 07:19:40 2020
+Job was executed on host(s) <8*lo-s4-083>, in queue <gpu.4h>, as user <takmaza> in cluster <leonhard> at Tue Jan  7 08:40:06 2020
+</cluster/home/takmaza> was used as the home directory.
+</cluster/home/takmaza/ExPGAN> was used as the working directory.
+Started at Tue Jan  7 08:40:06 2020
+Terminated at Tue Jan  7 11:24:48 2020
+Results reported at Tue Jan  7 11:24:48 2020
+
+Your job looked like:
+
+------------------------------------------------------------
+# LSBATCH: User input
+python train_gan.py
+------------------------------------------------------------
+
+TERM_OWNER: job killed by owner.
+Exited with exit code 1.
+
+Resource usage summary:
+
+    CPU time :                                   11955.07 sec.
+    Max Memory :                                 20530 MB
+    Average Memory :                             18750.46 MB
+    Total Requested Memory :                     327680.00 MB
+    Delta Memory :                               307150.00 MB
+    Max Swap :                                   -
+    Max Processes :                              4
+    Max Threads :                                18
+    Run time :                                   9888 sec.
+    Turnaround time :                            14708 sec.
+
+The output (if any) follows:
+
+cuda status:  True
+Switched to training mode
+##############################
+Epoch: 0
+Switched to eval mode
+/cluster/home/takmaza/.virtualenvs/dsc-env/lib/python3.7/site-packages/torch/nn/functional.py:2494: UserWarning: Default upsampling behavior when mode=bilinear is changed to align_corners=False since 0.4.0. Please specify align_corners=True if the old behavior is desired. See the documentation of nn.Upsample for details.
+  "See the documentation of nn.Upsample for details.".format(mode))
+Epoch 0: validation_loss=919.4077978134155, best_validation_loss=None 
+Saving models to /cluster/scratch/takmaza/DL/project_extrapolation/model3 
+##############################
+Epoch: 1
+Switched to eval mode
+Epoch 1: validation_loss=1457.0295124053955, best_validation_loss=919.4077978134155 
+##############################
+Epoch: 2
+Switched to eval mode
+Epoch 2: validation_loss=1447.8519878387451, best_validation_loss=919.4077978134155 
+##############################
+Epoch: 3
+Switched to eval mode
+Epoch 3: validation_loss=991.1243925094604, best_validation_loss=919.4077978134155 
+##############################
+Epoch: 4
+Switched to eval mode
+Epoch 4: validation_loss=1197.7658281326294, best_validation_loss=919.4077978134155 
+##############################
+Epoch: 5
+Switched to eval mode
+Epoch 5: validation_loss=954.2735185623169, best_validation_loss=919.4077978134155 
+##############################
+Epoch: 6
+Switched to eval mode
+Epoch 6: validation_loss=298.1357493400574, best_validation_loss=919.4077978134155 
+Saving models to /cluster/scratch/takmaza/DL/project_extrapolation/model3 
+##############################
+Epoch: 7
+Switched to eval mode
+Epoch 7: validation_loss=743.2997198104858, best_validation_loss=298.1357493400574 
+##############################
+Epoch: 8
+Switched to eval mode
+Epoch 8: validation_loss=1033.6061086654663, best_validation_loss=298.1357493400574 
+##############################
+Epoch: 9
+Traceback (most recent call last):
+  File "train_gan.py", line 210, in <module>
+    
+  File "/cluster/home/takmaza/.virtualenvs/dsc-env/lib/python3.7/site-packages/torch/utils/data/dataloader.py", line 804, in __next__
+    idx, data = self._get_data()
+  File "/cluster/home/takmaza/.virtualenvs/dsc-env/lib/python3.7/site-packages/torch/utils/data/dataloader.py", line 761, in _get_data
+    success, data = self._try_get_data()
+  File "/cluster/home/takmaza/.virtualenvs/dsc-env/lib/python3.7/site-packages/torch/utils/data/dataloader.py", line 724, in _try_get_data
+    data = self._data_queue.get(timeout=timeout)
+  File "/cluster/apps/python/3.7.1/x86_64/lib64/python3.7/queue.py", line 179, in get
+    self.not_empty.wait(remaining)
+  File "/cluster/apps/python/3.7.1/x86_64/lib64/python3.7/threading.py", line 300, in wait
+    gotit = waiter.acquire(True, timeout)
+KeyboardInterrupt
+Sender: LSF System <lsfadmin@lo-s4-078>
+Subject: Job 3753076: <python train_gan.py> in cluster <leonhard> Exited
+
+Job <python train_gan.py> was submitted from host <lo-login-01> by user <takmaza> in cluster <leonhard> at Tue Jan  7 11:25:08 2020
+Job was executed on host(s) <8*lo-s4-078>, in queue <gpu.4h>, as user <takmaza> in cluster <leonhard> at Tue Jan  7 11:25:35 2020
+</cluster/home/takmaza> was used as the home directory.
+</cluster/home/takmaza/ExPGAN> was used as the working directory.
+Started at Tue Jan  7 11:25:35 2020
+Terminated at Tue Jan  7 11:25:36 2020
+Results reported at Tue Jan  7 11:25:36 2020
+
+Your job looked like:
+
+------------------------------------------------------------
+# LSBATCH: User input
+python train_gan.py
+------------------------------------------------------------
+
+Exited with exit code 1.
+
+Resource usage summary:
+
+    CPU time :                                   0.30 sec.
+    Max Memory :                                 11 MB
+    Average Memory :                             -
+    Total Requested Memory :                     327680.00 MB
+    Delta Memory :                               327669.00 MB
+    Max Swap :                                   -
+    Max Processes :                              -
+    Max Threads :                                -
+    Run time :                                   30 sec.
+    Turnaround time :                            28 sec.
+
+The output (if any) follows:
+
+  File "train_gan.py", line 125
+    return(res)
+    ^
+SyntaxError: 'return' outside function
+Sender: LSF System <lsfadmin@lo-s4-078>
+Subject: Job 3753079: <python train_gan.py> in cluster <leonhard> Exited
+
+Job <python train_gan.py> was submitted from host <lo-login-01> by user <takmaza> in cluster <leonhard> at Tue Jan  7 11:26:27 2020
+Job was executed on host(s) <8*lo-s4-078>, in queue <gpu.4h>, as user <takmaza> in cluster <leonhard> at Tue Jan  7 11:26:34 2020
+</cluster/home/takmaza> was used as the home directory.
+</cluster/home/takmaza/ExPGAN> was used as the working directory.
+Started at Tue Jan  7 11:26:34 2020
+Terminated at Tue Jan  7 11:26:37 2020
+Results reported at Tue Jan  7 11:26:37 2020
+
+Your job looked like:
+
+------------------------------------------------------------
+# LSBATCH: User input
+python train_gan.py
+------------------------------------------------------------
+
+Exited with exit code 1.
+
+Resource usage summary:
+
+    CPU time :                                   0.29 sec.
+    Max Memory :                                 6 MB
+    Average Memory :                             -
+    Total Requested Memory :                     327680.00 MB
+    Delta Memory :                               327674.00 MB
+    Max Swap :                                   -
+    Max Processes :                              -
+    Max Threads :                                -
+    Run time :                                   30 sec.
+    Turnaround time :                            10 sec.
+
+The output (if any) follows:
+
+  File "train_gan.py", line 125
+    return(res)
+              ^
+TabError: inconsistent use of tabs and spaces in indentation

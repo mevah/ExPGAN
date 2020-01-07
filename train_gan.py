@@ -122,7 +122,7 @@ def img_denorm(img):
     #Image needs to be clipped since the denormalize function will map some
     #values below 0 and above 1
     res = torch.clamp(res, 0, 1)
-return(res)
+    return(res)
 
         
 def log_tbx(writers, mode, batch, outputs, losses, total_step):
