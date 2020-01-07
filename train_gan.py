@@ -110,6 +110,20 @@ def load_models(exp_img_shape):
     return left_D, right_D, generator_G
 
 
+def img_denorm(img):
+    mean = np.asarray([0.28689554, 0.32513303, 0.28389177])
+    std = np.asarray([0.18696375, 0.19017339, 0.18720214])
+        
+    denormalize = transforms.Normalize((-1 * mean / std), (1.0 / std))
+
+    res = img.squeeze(0)
+    res = denormalize(res)
+
+    #Image needs to be clipped since the denormalize function will map some
+    #values below 0 and above 1
+    res = torch.clamp(res, 0, 1)
+return(res)
+
         
 def log_tbx(writers, mode, batch, outputs, losses, total_step):
     """
@@ -122,11 +136,12 @@ def log_tbx(writers, mode, batch, outputs, losses, total_step):
     for j in range(min(4, opt.batch_size)):  
         writer.add_image(
             "input/{}".format(j),
-            batch[("img",0)][j].data, total_step)
+            img_denorm(batch[("img",0)][j]).data, total_step)
 
         writer.add_image(
             "generated/{}".format(j),
-            outputs[("generated")][j], total_step)
+            img_denorm(outputs[("generated")][j]), total_step)
+
 
 ### MAIN
 
