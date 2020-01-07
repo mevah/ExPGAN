@@ -319,7 +319,7 @@ for epoch in range(opt.num_epochs):
             #loss_recon_left = F.mse_loss(gen_fake_left, orj_left)
             #loss_recon_right = F.mse_loss(gen_fake_right, orj_right)
 
-            loss = opt.lambda_seg * loss_seg + opt.lambda_disc * loss_D_left + opt.lambda_disc * loss_D_right + opt.lambda_recon*loss_recon_left + opt.lambda_recon*loss_recon_right
+            loss = opt.lambda_seg * loss_seg - opt.lambda_disc * loss_D_left - opt.lambda_disc * loss_D_right + opt.lambda_recon*loss_recon_left + opt.lambda_recon*loss_recon_right
             losses = write_losses(loss, loss_seg,loss_D_left,loss_D_right,loss_recon_left,loss_recon_right)
             loss.backward()
             optimizer_G.step()
@@ -398,7 +398,7 @@ for epoch in range(opt.num_epochs):
         #loss_recon_left = F.mse_loss(gen_fake_left, orj_left)
         #loss_recon_right = F.mse_loss(gen_fake_right, orj_right)
 
-        loss = opt.lambda_seg * loss_seg + opt.lambda_disc * loss_D_left + opt.lambda_disc * loss_D_right + opt.lambda_recon*loss_recon_left + opt.lambda_recon*loss_recon_right
+        loss = opt.lambda_seg * loss_seg - opt.lambda_disc * loss_D_left - opt.lambda_disc * loss_D_right + opt.lambda_recon*loss_recon_left + opt.lambda_recon*loss_recon_right
         
         batch_loss = loss.item()
         val_loss+=batch_loss

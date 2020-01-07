@@ -990,3 +990,333 @@ Traceback (most recent call last):
   File "/cluster/apps/python/3.7.1/x86_64/lib64/python3.7/threading.py", line 300, in wait
     gotit = waiter.acquire(True, timeout)
 KeyboardInterrupt
+Sender: LSF System <lsfadmin@lo-s4-078>
+Subject: Job 3738951: <python train_gan.py> in cluster <leonhard> Exited
+
+Job <python train_gan.py> was submitted from host <lo-login-01> by user <takmaza> in cluster <leonhard> at Sun Jan  5 19:06:03 2020
+Job was executed on host(s) <8*lo-s4-078>, in queue <gpu.24h>, as user <takmaza> in cluster <leonhard> at Sun Jan  5 19:06:17 2020
+</cluster/home/takmaza> was used as the home directory.
+</cluster/home/takmaza/ExPGAN> was used as the working directory.
+Started at Sun Jan  5 19:06:17 2020
+Terminated at Mon Jan  6 19:06:16 2020
+Results reported at Mon Jan  6 19:06:16 2020
+
+Your job looked like:
+
+------------------------------------------------------------
+# LSBATCH: User input
+python train_gan.py
+------------------------------------------------------------
+
+TERM_RUNLIMIT: job killed after reaching LSF run time limit.
+Exited with exit code 140.
+
+Resource usage summary:
+
+    CPU time :                                   98698.00 sec.
+    Max Memory :                                 18733 MB
+    Average Memory :                             17086.54 MB
+    Total Requested Memory :                     327680.00 MB
+    Delta Memory :                               308947.00 MB
+    Max Swap :                                   -
+    Max Processes :                              4
+    Max Threads :                                18
+    Run time :                                   86427 sec.
+    Turnaround time :                            86413 sec.
+
+The output (if any) follows:
+
+cuda status:  True
+Switched to training mode
+##############################
+Epoch: 0
+Switched to eval mode
+/cluster/home/takmaza/.virtualenvs/dsc-env/lib/python3.7/site-packages/torch/nn/functional.py:2494: UserWarning: Default upsampling behavior when mode=bilinear is changed to align_corners=False since 0.4.0. Please specify align_corners=True if the old behavior is desired. See the documentation of nn.Upsample for details.
+  "See the documentation of nn.Upsample for details.".format(mode))
+Epoch 0: validation_loss=327.5425980091095, best_validation_loss=None 
+Saving models to /cluster/scratch/takmaza/DL/project_extrapolation/model3 
+##############################
+Epoch: 1
+Switched to eval mode
+Epoch 1: validation_loss=239.70567059516907, best_validation_loss=327.5425980091095 
+Saving models to /cluster/scratch/takmaza/DL/project_extrapolation/model3 
+##############################
+Epoch: 2
+Switched to eval mode
+Epoch 2: validation_loss=1001.5961999893188, best_validation_loss=239.70567059516907 
+##############################
+Epoch: 3
+Switched to eval mode
+Epoch 3: validation_loss=205.00421285629272, best_validation_loss=239.70567059516907 
+Saving models to /cluster/scratch/takmaza/DL/project_extrapolation/model3 
+##############################
+Epoch: 4
+Switched to eval mode
+Epoch 4: validation_loss=561.5706734657288, best_validation_loss=205.00421285629272 
+##############################
+Epoch: 5
+Switched to eval mode
+Epoch 5: validation_loss=729.2250738143921, best_validation_loss=205.00421285629272 
+##############################
+Epoch: 6
+Switched to eval mode
+Epoch 6: validation_loss=1038.4099283218384, best_validation_loss=205.00421285629272 
+##############################
+Epoch: 7
+Switched to eval mode
+Epoch 7: validation_loss=697.3391380310059, best_validation_loss=205.00421285629272 
+##############################
+Epoch: 8
+Switched to eval mode
+Epoch 8: validation_loss=783.5072937011719, best_validation_loss=205.00421285629272 
+##############################
+Epoch: 9
+Switched to eval mode
+Epoch 9: validation_loss=742.1166086196899, best_validation_loss=205.00421285629272 
+##############################
+Epoch: 10
+Switched to eval mode
+Epoch 10: validation_loss=615.8422541618347, best_validation_loss=205.00421285629272 
+##############################
+Epoch: 11
+Switched to eval mode
+Epoch 11: validation_loss=913.5115032196045, best_validation_loss=205.00421285629272 
+##############################
+Epoch: 12
+Switched to eval mode
+Epoch 12: validation_loss=556.6955323219299, best_validation_loss=205.00421285629272 
+##############################
+Epoch: 13
+Switched to eval mode
+Epoch 13: validation_loss=764.062647819519, best_validation_loss=205.00421285629272 
+##############################
+Epoch: 14
+Switched to eval mode
+Epoch 14: validation_loss=738.0216131210327, best_validation_loss=205.00421285629272 
+##############################
+Epoch: 15
+Switched to eval mode
+Epoch 15: validation_loss=926.5273132324219, best_validation_loss=205.00421285629272 
+##############################
+Epoch: 16
+Switched to eval mode
+Epoch 16: validation_loss=988.5461702346802, best_validation_loss=205.00421285629272 
+##############################
+Epoch: 17
+Switched to eval mode
+Epoch 17: validation_loss=742.5282068252563, best_validation_loss=205.00421285629272 
+##############################
+Epoch: 18
+Switched to eval mode
+Epoch 18: validation_loss=558.2799458503723, best_validation_loss=205.00421285629272 
+##############################
+Epoch: 19
+Switched to eval mode
+Epoch 19: validation_loss=915.3554811477661, best_validation_loss=205.00421285629272 
+##############################
+Epoch: 20
+Switched to eval mode
+Epoch 20: validation_loss=807.53542137146, best_validation_loss=205.00421285629272 
+##############################
+Epoch: 21
+Switched to eval mode
+Epoch 21: validation_loss=782.5052576065063, best_validation_loss=205.00421285629272 
+##############################
+Epoch: 22
+Switched to eval mode
+Epoch 22: validation_loss=980.8098440170288, best_validation_loss=205.00421285629272 
+##############################
+Epoch: 23
+Switched to eval mode
+Epoch 23: validation_loss=654.4963178634644, best_validation_loss=205.00421285629272 
+##############################
+Epoch: 24
+Switched to eval mode
+Epoch 24: validation_loss=966.9371213912964, best_validation_loss=205.00421285629272 
+##############################
+Epoch: 25
+Switched to eval mode
+Epoch 25: validation_loss=946.4648866653442, best_validation_loss=205.00421285629272 
+##############################
+Epoch: 26
+Switched to eval mode
+Epoch 26: validation_loss=1060.4162073135376, best_validation_loss=205.00421285629272 
+##############################
+Epoch: 27
+Switched to eval mode
+Epoch 27: validation_loss=891.8983144760132, best_validation_loss=205.00421285629272 
+##############################
+Epoch: 28
+Switched to eval mode
+Epoch 28: validation_loss=1053.2626638412476, best_validation_loss=205.00421285629272 
+##############################
+Epoch: 29
+Switched to eval mode
+Epoch 29: validation_loss=1051.6538457870483, best_validation_loss=205.00421285629272 
+##############################
+Epoch: 30
+Switched to eval mode
+Epoch 30: validation_loss=1338.4141788482666, best_validation_loss=205.00421285629272 
+##############################
+Epoch: 31
+Switched to eval mode
+Epoch 31: validation_loss=1599.6167297363281, best_validation_loss=205.00421285629272 
+##############################
+Epoch: 32
+Switched to eval mode
+Epoch 32: validation_loss=956.5794734954834, best_validation_loss=205.00421285629272 
+##############################
+Epoch: 33
+Switched to eval mode
+Epoch 33: validation_loss=1287.8156805038452, best_validation_loss=205.00421285629272 
+##############################
+Epoch: 34
+Switched to eval mode
+Epoch 34: validation_loss=1106.4323348999023, best_validation_loss=205.00421285629272 
+##############################
+Epoch: 35
+Switched to eval mode
+Epoch 35: validation_loss=1054.6135349273682, best_validation_loss=205.00421285629272 
+##############################
+Epoch: 36
+Switched to eval mode
+Epoch 36: validation_loss=1217.6177387237549, best_validation_loss=205.00421285629272 
+##############################
+Epoch: 37
+Switched to eval mode
+Epoch 37: validation_loss=1064.9458265304565, best_validation_loss=205.00421285629272 
+##############################
+Epoch: 38
+Switched to eval mode
+Epoch 38: validation_loss=1306.581316947937, best_validation_loss=205.00421285629272 
+##############################
+Epoch: 39
+Switched to eval mode
+Epoch 39: validation_loss=1485.0722398757935, best_validation_loss=205.00421285629272 
+##############################
+Epoch: 40
+Switched to eval mode
+Epoch 40: validation_loss=970.1612415313721, best_validation_loss=205.00421285629272 
+##############################
+Epoch: 41
+Switched to eval mode
+Epoch 41: validation_loss=1123.138216972351, best_validation_loss=205.00421285629272 
+##############################
+Epoch: 42
+Switched to eval mode
+Epoch 42: validation_loss=1252.8211822509766, best_validation_loss=205.00421285629272 
+##############################
+Epoch: 43
+Switched to eval mode
+Epoch 43: validation_loss=1074.0105829238892, best_validation_loss=205.00421285629272 
+##############################
+Epoch: 44
+Switched to eval mode
+Epoch 44: validation_loss=1408.2086334228516, best_validation_loss=205.00421285629272 
+##############################
+Epoch: 45
+Switched to eval mode
+Epoch 45: validation_loss=1174.4353408813477, best_validation_loss=205.00421285629272 
+##############################
+Epoch: 46
+Switched to eval mode
+Epoch 46: validation_loss=911.0683250427246, best_validation_loss=205.00421285629272 
+##############################
+Epoch: 47
+Switched to eval mode
+Epoch 47: validation_loss=1316.3828897476196, best_validation_loss=205.00421285629272 
+##############################
+Epoch: 48
+Switched to eval mode
+Epoch 48: validation_loss=1180.5871887207031, best_validation_loss=205.00421285629272 
+##############################
+Epoch: 49
+Switched to eval mode
+Epoch 49: validation_loss=1009.4932231903076, best_validation_loss=205.00421285629272 
+##############################
+Epoch: 50
+Switched to eval mode
+Epoch 50: validation_loss=1563.668737411499, best_validation_loss=205.00421285629272 
+##############################
+Epoch: 51
+Switched to eval mode
+Epoch 51: validation_loss=1496.1391296386719, best_validation_loss=205.00421285629272 
+##############################
+Epoch: 52
+Switched to eval mode
+Epoch 52: validation_loss=1016.0228786468506, best_validation_loss=205.00421285629272 
+##############################
+Epoch: 53
+Switched to eval mode
+Epoch 53: validation_loss=1139.8587398529053, best_validation_loss=205.00421285629272 
+##############################
+Epoch: 54
+Switched to eval mode
+Epoch 54: validation_loss=1610.8296737670898, best_validation_loss=205.00421285629272 
+##############################
+Epoch: 55
+Switched to eval mode
+Epoch 55: validation_loss=1372.4276142120361, best_validation_loss=205.00421285629272 
+##############################
+Epoch: 56
+Switched to eval mode
+Epoch 56: validation_loss=1011.8125219345093, best_validation_loss=205.00421285629272 
+##############################
+Epoch: 57
+Switched to eval mode
+Epoch 57: validation_loss=2012.8636379241943, best_validation_loss=205.00421285629272 
+##############################
+Epoch: 58
+Switched to eval mode
+Epoch 58: validation_loss=1071.6469640731812, best_validation_loss=205.00421285629272 
+##############################
+Epoch: 59
+Switched to eval mode
+Epoch 59: validation_loss=1128.7727737426758, best_validation_loss=205.00421285629272 
+##############################
+Epoch: 60
+Switched to eval mode
+Epoch 60: validation_loss=927.6676511764526, best_validation_loss=205.00421285629272 
+##############################
+Epoch: 61
+Switched to eval mode
+Epoch 61: validation_loss=1320.9910221099854, best_validation_loss=205.00421285629272 
+##############################
+Epoch: 62
+Switched to eval mode
+Epoch 62: validation_loss=1490.5531463623047, best_validation_loss=205.00421285629272 
+##############################
+Epoch: 63
+Switched to eval mode
+Epoch 63: validation_loss=1255.591389656067, best_validation_loss=205.00421285629272 
+##############################
+Epoch: 64
+Switched to eval mode
+Epoch 64: validation_loss=857.8234901428223, best_validation_loss=205.00421285629272 
+##############################
+Epoch: 65
+Switched to eval mode
+Epoch 65: validation_loss=777.3157558441162, best_validation_loss=205.00421285629272 
+##############################
+Epoch: 66
+Switched to eval mode
+Epoch 66: validation_loss=1182.054063796997, best_validation_loss=205.00421285629272 
+##############################
+Epoch: 67
+Switched to eval mode
+Epoch 67: validation_loss=1481.085340499878, best_validation_loss=205.00421285629272 
+##############################
+Epoch: 68
+Switched to eval mode
+Epoch 68: validation_loss=1221.4408569335938, best_validation_loss=205.00421285629272 
+##############################
+Epoch: 69
+Switched to eval mode
+Epoch 69: validation_loss=1209.7615098953247, best_validation_loss=205.00421285629272 
+##############################
+Epoch: 70
+Switched to eval mode
+Epoch 70: validation_loss=1239.6859226226807, best_validation_loss=205.00421285629272 
+##############################
+Epoch: 71
+User defined signal 2
