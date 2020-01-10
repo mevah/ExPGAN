@@ -237,12 +237,15 @@ def load_images(path):
         for impath in glob.glob(os.path.join(path, "*.{}".format(ext))):
             image_paths.append(impath)
     first_image = cv2.imread(image_paths[0])
-    H,W = first_image.shape[:2]
+    H,W = first_image.shape[:2] 
+    H= int(H/2)
+    W= int(W/2)
     image_paths.sort()
     image_paths = image_paths
     final_images = np.zeros((len(image_paths), H, W, 3), dtype=first_image.dtype)
     for idx, impath in enumerate(image_paths):
         im = cv2.imread(impath)
+        im= cv2.resize(im, (1024,512))
         im = im[:, :, ::-1] # Convert from BGR to RGB
         assert im.dtype == final_images.dtype
         final_images[idx] = im
