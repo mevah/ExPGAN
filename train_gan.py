@@ -45,6 +45,7 @@ parser.add_argument("--dataset_folder", type=str, default='/cluster/scratch/takm
 parser.add_argument("--model_save", type=str, default='/cluster/scratch/takmaza/DL/', help='specify the directory to save models')
 parser.add_argument("--log_frequency", type=int, default=20, help="log frequency in terms of steps")
 parser.add_argument("--logfile_name", type=str, default='logs.txt')
+parser.add_argument("--model_load", type=str, default="")
 
 opt = parser.parse_args()       
 
@@ -111,9 +112,10 @@ def save_model(left_D, right_D, generator_G):
         },
         os.path.join(model_save_dir, "model.pt"))
     
-def load_models(exp_img_shape):
-    logging('Loading models from {} '.format(model_save_dir))
-    loaded = torch.load(os.path.join(model_save_dir, "model.pt"))
+def load_model(exp_img_shape):
+    logging('Loading models from {} '.format(opt.model_load))
+    #loaded = torch.load(os.path.join(model_save_dir, "model.pt"))
+    loaded = torch.load(opt.model_load)
     
     left_D = LeftDiscriminator(exp_img_shape)
     right_D = RightDiscriminator(exp_img_shape)
@@ -183,9 +185,12 @@ val_loader = DataLoader(
     num_workers=1, pin_memory=True, drop_last=True)
 
 
-left_D = LeftDiscriminator(exp_img_shape)
-right_D = RightDiscriminator(exp_img_shape)
-generator_G = ExPGenerator()
+if opt.model_load == "":
+    left_D = LeftDiscriminator(exp_img_shape)
+    right_D = RightDiscriminator(exp_img_shape)
+    generator_G = ExPGenerator()
+else:
+    left_D, right_D, generator_G = load_model(exp_img_shape)
 
 if cuda:
     left_D.cuda()
