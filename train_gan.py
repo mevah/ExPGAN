@@ -450,6 +450,9 @@ for epoch in range(opt.num_epochs):
 
     if best_val_loss is None or val_loss < best_val_loss: 
         best_val_loss = val_loss
+        #save_model(left_D, right_D, generator_G)
+
+    if epoch % 5 == 0:
         save_model(left_D, right_D, generator_G)
 
 # log
