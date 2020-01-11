@@ -441,11 +441,13 @@ for epoch in range(opt.num_epochs):
         
         batch_loss = loss.item()
         val_loss+=batch_loss
-    
+
     logging("Epoch {}: validation_loss={}, best_validation_loss={} ".format(epoch, val_loss ,best_val_loss))
     
     # last batch
     losses = write_losses(loss, loss_seg,loss_D_left,loss_D_right,loss_recon_left,loss_recon_right)
+    outputs = {}
+    outputs['generated']= torch.cat((fake_left,gen_fake_right), dim=3)
     log_tbx(writers, "val", batch, outputs, losses, total_step)
 
     if best_val_loss is None or val_loss < best_val_loss: 
