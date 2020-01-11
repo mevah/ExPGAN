@@ -53,7 +53,7 @@ opt = parser.parse_args()
 def get_model_name(opt):
     writer_log_dir = os.path.join(opt.model_save, 'models')
     curr_time = datetime.datetime.now()
-    writer_log_dir = os.path.join(writer_log_dir, str(curr_time.year) + '-' + str('%02d' %curr_time.month) + '-' + str('%02d' %curr_time.day) + '-' + str('%02d' %curr_time.hour) +str('%02d' %curr_time.minute)+ +str('%02d' %curr_time.second)) #'_' + str(args.lr) 
+    writer_log_dir = os.path.join(writer_log_dir, str(curr_time.year) + '-' + str('%02d' %curr_time.month) + '-' + str('%02d' %curr_time.day) + '-' + str('%02d' %curr_time.hour) +str('%02d' %curr_time.minute)+ str('%02d' %curr_time.second)) #'_' + str(args.lr) 
     if not os.path.exists(writer_log_dir):
         os.makedirs(writer_log_dir)
     return writer_log_dir

@@ -2994,3 +2994,44 @@ Saving models to /cluster/scratch/takmaza/DL/models/2020-01-10-0218
 ##############################
 Epoch: 76
 User defined signal 2
+Sender: LSF System <lsfadmin@lo-s4-082>
+Subject: Job 3780617: <python train_gan.py --lr_gen=0.0002 --mini_D_num_epochs=6 --mini_G_num_epochs=2> in cluster <leonhard> Exited
+
+Job <python train_gan.py --lr_gen=0.0002 --mini_D_num_epochs=6 --mini_G_num_epochs=2> was submitted from host <lo-login-02> by user <takmaza> in cluster <leonhard> at Sat Jan 11 23:56:02 2020
+Job was executed on host(s) <8*lo-s4-082>, in queue <gpu.24h>, as user <takmaza> in cluster <leonhard> at Sat Jan 11 23:56:18 2020
+</cluster/home/takmaza> was used as the home directory.
+</cluster/home/takmaza/ExPGAN> was used as the working directory.
+Started at Sat Jan 11 23:56:18 2020
+Terminated at Sat Jan 11 23:56:23 2020
+Results reported at Sat Jan 11 23:56:23 2020
+
+Your job looked like:
+
+------------------------------------------------------------
+# LSBATCH: User input
+python train_gan.py --lr_gen=0.0002 --mini_D_num_epochs=6 --mini_G_num_epochs=2
+------------------------------------------------------------
+
+Exited with exit code 1.
+
+Resource usage summary:
+
+    CPU time :                                   1.52 sec.
+    Max Memory :                                 279 MB
+    Average Memory :                             274.00 MB
+    Total Requested Memory :                     327680.00 MB
+    Delta Memory :                               327401.00 MB
+    Max Swap :                                   -
+    Max Processes :                              3
+    Max Threads :                                5
+    Run time :                                   22 sec.
+    Turnaround time :                            21 sec.
+
+The output (if any) follows:
+
+Traceback (most recent call last):
+  File "train_gan.py", line 61, in <module>
+    model_save_dir = get_model_name(opt)
+  File "train_gan.py", line 56, in get_model_name
+    writer_log_dir = os.path.join(writer_log_dir, str(curr_time.year) + '-' + str('%02d' %curr_time.month) + '-' + str('%02d' %curr_time.day) + '-' + str('%02d' %curr_time.hour) +str('%02d' %curr_time.minute)+ +str('%02d' %curr_time.second)) #'_' + str(args.lr) 
+TypeError: bad operand type for unary +: 'str'
