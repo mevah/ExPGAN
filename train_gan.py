@@ -41,14 +41,14 @@ parser.add_argument("--img_size", type=int, default=28, help="size of each image
 parser.add_argument("--n_critic", type=int, default=5, help="number of training steps for discriminator per iter")
 parser.add_argument("--clip_value", type=float, default=0.01, help="lower and upper clip value for disc. weights")
 parser.add_argument("--sample_interval", type=int, default=400, help="interval betwen image samples")
-parser.add_argument("--dataset_folder", type=str, default='/cluster/scratch/takmaza/DL', help="dataset folder, directory which includes left8bit and gtFine folders")
+parser.add_argument("--dataset_folder", type=str, default='/cluster/scratch/takmaza/DL/segs', help="dataset folder, directory which includes left8bit and gtFine folders")
 parser.add_argument("--model_save", type=str, default='/cluster/scratch/takmaza/DL/', help='specify the directory to save models')
 parser.add_argument("--log_frequency", type=int, default=20, help="log frequency in terms of steps")
 parser.add_argument("--logfile_name", type=str, default='logs.txt')
 parser.add_argument("--model_load", type=str, default="")
 
 opt = parser.parse_args()       
-
+print(opt)
 
 def get_model_name(opt):
     writer_log_dir = os.path.join(opt.model_save, 'models')
