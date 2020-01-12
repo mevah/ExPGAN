@@ -238,6 +238,13 @@ for mode in ["train", "val"]:
     
 best_val_loss = None
 
+#Make networks multigpu available
+if torch.cuda.device_count() > 1:
+    print("There are", torch.cuda.device_count(), "gpus available.")
+    left_D = nn.DataParallel(left_D)
+    right_D= nn.DataParallel(right_D)
+    generator_G = nn.DataParallel(generator_G)
+
 print('Switched to training mode')
 for epoch in range(opt.num_epochs):
     print('#'*30)
