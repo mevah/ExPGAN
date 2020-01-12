@@ -88,15 +88,22 @@ def to_categorical_torch(y, num_columns):
 
     return Variable(FloatTensor(y_cat))
 
-def write_losses(loss, loss_seg,loss_D_left,loss_D_right,loss_recon_left,loss_recon_right):
+def write_losses_d(loss_D_left,loss_D_right):
     losses = {}
-    losses["losses/loss_seg"] = loss_seg
-    losses["losses/loss_D_left"] = loss_D_left
-    losses["losses/loss_D_right"] = loss_D_right
-    losses["losses/loss_recon_left"] = loss_recon_left
-    losses["losses/loss_recon_right"] = loss_recon_right
+    losses["D_losses/loss_D_left"] = loss_D_left
+    losses["D_losses/loss_D_right"] = loss_D_right
+    return losses
+
+def write_losses_g(loss, loss_seg,loss_D_left,loss_D_right,loss_recon_left,loss_recon_right):
+    losses = {}
+    losses["G_losses/loss_seg"] = loss_seg
+    losses["G_losses/loss_D_left"] = loss_D_left
+    losses["G_losses/loss_D_right"] = loss_D_right
+    losses["G_losses/loss_recon_left"] = loss_recon_left
+    losses["G_losses/loss_recon_right"] = loss_recon_right
     losses["total_loss"] = loss
     return losses
+
 
 def call_logger(batch_idx, opt, total_step, mode="train"):
     early_phase = batch_idx % opt.log_frequency == 0 and total_step < 2000
@@ -142,12 +149,15 @@ def img_denorm(img):
     return(res)
 
         
-def log_tbx(writers, mode, batch, outputs, losses, total_step):
+def log_tbx(writers, mode, batch, outputs, losses_d, losses_g, total_step):
     """
     Write an event to the tensorboard events file
     """
     writer = writers[mode]
-    for l, v in losses.items():
+    for l, v in losses_d.items():
+        writer.add_scalar("{}".format(l), v, total_step)
+
+    for l, v in losses_g.items():
         writer.add_scalar("{}".format(l), v, total_step)
 
     for j in range(min(4, opt.batch_size)):  
@@ -300,9 +310,20 @@ for epoch in range(opt.num_epochs):
             lbl_est_right = right_D(right_imgs)
             loss_D_right =adversarial_loss(torch.squeeze(lbl_est_right), torch.squeeze(lbls))
 
+            #print('#'*50)
+            #print('lbl_est shape: ', torch.squeeze(lbl_est_right).shape)
+            #print('lbls shape: ', torch.squeeze(lbls).shape)
+            #print('lbl_est_left: ', lbl_est_left)
+            #print('lbl_est_right: ', lbl_est_right)
+            #print('lbls: ', lbls)
+            #print('loss_D_left: ',loss_D_left)
+            #print('loss_D_right: ',loss_D_right)
+
             optimizer_D_right.zero_grad()
             loss_D_right.backward()
             optimizer_D_right.step()
+
+        losses_d = write_losses_d(loss_D_left,loss_D_right)
 
         for epoch_G in range(mini_G_num_epochs):
             #print('epoch_G: ', epoch_G)
@@ -323,12 +344,13 @@ for epoch in range(opt.num_epochs):
 
             fake_left = torch.cat((gen_fake_left, source_img), dim=3)
             fake_right= torch.cat((source_img, gen_fake_right), dim=3)
-            true_lbl = Variable(Tensor(source_img.size(0), 1).fill_(1.0), requires_grad=False)
-            true_lbl = true_lbl.cuda()
+            fake_lbl = Variable(Tensor(source_img.size(0), 1).fill_(0.0), requires_grad=False)
+            fake_lbl = fake_lbl.cuda()
             #GET DISCRIMINATOR RESULTS
             lbl_est_left = left_D(fake_left)
             lbl_est_right = right_D(fake_right)
-            
+
+
             optimizer_G.zero_grad()
             #print(torch.squeeze(gen_fake_seg).shape)
             #print(torch.squeeze(masked_target).shape)
@@ -348,8 +370,8 @@ for epoch in range(opt.num_epochs):
 
             #loss_seg = F.cross_entropy(torch.squeeze(gen_fake_seg), torch.squeeze(masked_target))
 
-            loss_D_left = adversarial_loss(torch.squeeze(lbl_est_left), torch.squeeze(true_lbl))
-            loss_D_right = adversarial_loss(torch.squeeze(lbl_est_right), torch.squeeze(true_lbl))
+            loss_D_left_g = adversarial_loss(torch.squeeze(lbl_est_left), torch.squeeze(fake_lbl))
+            loss_D_right_g = adversarial_loss(torch.squeeze(lbl_est_right), torch.squeeze(fake_lbl))
 
             #print(loss_seg.requires_grad)
                 
@@ -365,16 +387,27 @@ for epoch in range(opt.num_epochs):
             #loss_recon_left = F.mse_loss(gen_fake_left, orj_left)
             #loss_recon_right = F.mse_loss(gen_fake_right, orj_right)
 
-            loss = opt.lambda_seg * loss_seg - opt.lambda_disc * loss_D_left - opt.lambda_disc * loss_D_right + opt.lambda_recon*loss_recon_left + opt.lambda_recon*loss_recon_right
-            losses = write_losses(loss, loss_seg,loss_D_left,loss_D_right,loss_recon_left,loss_recon_right)
+            #print('++'*50)
+            #print('GENERATOR EPOCH')
+            #print('lbl_est shape: ', torch.squeeze(lbl_est_right).shape)
+            #print('lbls shape: ', torch.squeeze(lbls).shape)
+            #print('lbl_est_left: ', lbl_est_left)
+            #print('lbl_est_right: ', lbl_est_right)
+            #print('lbls: ', lbls)
+            #print('loss_D_left: ',loss_D_left_g)
+            #print('loss_D_right: ',loss_D_right_g)
+
+
+            loss = opt.lambda_seg * loss_seg - opt.lambda_disc * loss_D_left_g - opt.lambda_disc * loss_D_right_g + opt.lambda_recon*loss_recon_left + opt.lambda_recon*loss_recon_right
             loss.backward()
-            optimizer_G.step()
+            optimizer_G.step() 
+        losses_g = write_losses_g(loss, loss_seg,loss_D_left_g,loss_D_right_g,loss_recon_left,loss_recon_right)
         total_step += 1
         
         if call_logger(batch_idx, opt, total_step):
             outputs = {}
             outputs['generated']= torch.cat((fake_left,gen_fake_right), dim=3)
-            log_tbx(writers, "train", batch, outputs, losses, total_step)
+            log_tbx(writers, "train", batch, outputs, losses_d, losses_g, total_step)
 
     #IMPLEMENT VALIDATION
     #Switch models to evaluation mode
@@ -411,9 +444,27 @@ for epoch in range(opt.num_epochs):
 
         fake_left = torch.cat((gen_fake_left, source_img), dim=3)
         fake_right= torch.cat((source_img, gen_fake_right), dim=3)
+        true_left = true_im[:, : , :, 0:exp_img_shape[-1]]
+        true_right = true_im[:, :, : , -exp_img_shape[-1]:]
         true_lbl = Variable(Tensor(source_img.size(0), 1).fill_(1.0), requires_grad=False)
+        fake_lbl = Variable(Tensor(source_img.size(0), 1).fill_(0.0), requires_grad=False)
         true_lbl = true_lbl.cuda()
+        fake_lbl = fake_lbl.cuda()
+
+        lbls = torch.squeeze(torch.cat((true_lbl, fake_lbl), dim=0))
+        left_imgs = torch.cat((true_left, fake_left), dim=0)
+        right_imgs = torch.cat((true_right, fake_right), dim=0)
+
+        # for the calculation of the Disc loss
+        lbl_est_left = left_D(left_imgs)
+        loss_D_left = adversarial_loss(torch.squeeze(lbl_est_left), torch.squeeze(lbls))
+        lbl_est_right = right_D(right_imgs)
+        loss_D_right =adversarial_loss(torch.squeeze(lbl_est_right), torch.squeeze(lbls))
+
+
         #GET DISCRIMINATOR RESULTS
+        # for the calculation of the Gen loss
+        # az oncekinin son sekiz tanesini alsak da olurdu aslinda
         lbl_est_left = left_D(fake_left)
         lbl_est_right = right_D(fake_right)
 
@@ -429,8 +480,8 @@ for epoch in range(opt.num_epochs):
 
         #loss_seg = F.cross_entropy(torch.squeeze(gen_fake_seg), torch.squeeze(masked_target))
 
-        loss_D_left = adversarial_loss(torch.squeeze(lbl_est_left), torch.squeeze(true_lbl))
-        loss_D_right = adversarial_loss(torch.squeeze(lbl_est_right), torch.squeeze(true_lbl))
+        loss_D_left_g = adversarial_loss(torch.squeeze(lbl_est_left), torch.squeeze(fake_lbl))
+        loss_D_right_g = adversarial_loss(torch.squeeze(lbl_est_right), torch.squeeze(fake_lbl))
 
         #print(loss_seg.requires_grad)
 
@@ -444,7 +495,7 @@ for epoch in range(opt.num_epochs):
         #loss_recon_left = F.mse_loss(gen_fake_left, orj_left)
         #loss_recon_right = F.mse_loss(gen_fake_right, orj_right)
 
-        loss = opt.lambda_seg * loss_seg - opt.lambda_disc * loss_D_left - opt.lambda_disc * loss_D_right + opt.lambda_recon*loss_recon_left + opt.lambda_recon*loss_recon_right
+        loss = opt.lambda_seg * loss_seg - opt.lambda_disc * loss_D_left_g - opt.lambda_disc * loss_D_right_g + opt.lambda_recon*loss_recon_left + opt.lambda_recon*loss_recon_right
         
         batch_loss = loss.item()
         val_loss+=batch_loss
@@ -452,10 +503,13 @@ for epoch in range(opt.num_epochs):
     logging("Epoch {}: validation_loss={}, best_validation_loss={} ".format(epoch, val_loss ,best_val_loss))
     
     # last batch
-    losses = write_losses(loss, loss_seg,loss_D_left,loss_D_right,loss_recon_left,loss_recon_right)
-    outputs = {}
-    outputs['generated']= torch.cat((fake_left,gen_fake_right), dim=3)
-    log_tbx(writers, "val", batch, outputs, losses, total_step)
+    losses_d = write_losses_d(loss_D_left,loss_D_right)
+    losses_g = write_losses_g(loss, loss_seg,loss_D_left_g,loss_D_right_g,loss_recon_left,loss_recon_right)
+
+    if call_logger(batch_idx, opt, total_step):
+        outputs = {}
+        outputs['generated']= torch.cat((fake_left,gen_fake_right), dim=3)
+        log_tbx(writers, "val", batch, outputs, losses_d, losses_g, total_step)
 
     if best_val_loss is None or val_loss < best_val_loss: 
         best_val_loss = val_loss
