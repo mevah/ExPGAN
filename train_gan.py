@@ -506,10 +506,9 @@ for epoch in range(opt.num_epochs):
     losses_d = write_losses_d(loss_D_left,loss_D_right)
     losses_g = write_losses_g(loss, loss_seg,loss_D_left_g,loss_D_right_g,loss_recon_left,loss_recon_right)
 
-    if call_logger(batch_idx, opt, total_step):
-        outputs = {}
-        outputs['generated']= torch.cat((fake_left,gen_fake_right), dim=3)
-        log_tbx(writers, "val", batch, outputs, losses_d, losses_g, total_step)
+    outputs = {}
+    outputs['generated']= torch.cat((fake_left,gen_fake_right), dim=3)
+    log_tbx(writers, "val", batch, outputs, losses_d, losses_g, total_step)
 
     if best_val_loss is None or val_loss < best_val_loss: 
         best_val_loss = val_loss
