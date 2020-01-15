@@ -22,6 +22,9 @@ from gan_model import CS_Dataset
 from gan_model import LeftDiscriminator, RightDiscriminator, ExPGenerator
 from gan_model import initialize_weights
 
+from fcn_model import fcn8s
+import torchvision.models as models
+import scipy.misc as misc
 parser = argparse.ArgumentParser()
 parser.add_argument("--num_epochs", type=int, default=200, help="number of epochs of training")
 parser.add_argument("--mini_D_num_epochs", type=int, default=1, help="number of epochs of training D")
@@ -236,7 +239,18 @@ if cuda:
     right_D.cuda()
     generator_G.cuda()
     
-    
+ # Setup Segmentation Model
+model_dict = {"arch": "fcn8s"}            
+seg_model = fcn8s(n_classes=7)
+vgg16 = models.vgg16(pretrained=True)
+seg_model.init_vgg16_params(vgg16)     
+state = (torch.load("fcn8s_cityscapes_best_model.pkl")["model_state"])
+seg_model = torch.nn.DataParallel(seg_model, device_ids=range(torch.cuda.device_count()))
+seg_model.load_state_dict(state)
+seg_model.eval()
+seg_model.cuda()
+
+
 optimizer_G = torch.optim.Adam(generator_G.parameters(), lr=opt.lr_gen, betas=(opt.b1_gen, opt.b2_gen))
 optimizer_D_left = torch.optim.Adam(left_D.parameters(), lr=opt.lr_disc, betas=(opt.b1_disc, opt.b2_disc))
 optimizer_D_right = torch.optim.Adam(right_D.parameters(), lr=opt.lr_disc, betas=(opt.b1_disc, opt.b2_disc))
@@ -389,7 +403,19 @@ for epoch in range(opt.num_epochs):
             #GET DISCRIMINATOR RESULTS
             lbl_est_left = left_D(fake_left)
             lbl_est_right = right_D(fake_right)
-
+            
+            #generated output
+            gen_output= torch.cat((fake_left,gen_fake_right), dim=3)
+            print("gen output shape:", gen_output.shape)
+            #orig_size = img.shape[:-1]
+            img= F.interpolate(gen_output, (512,1024))      
+            print("img shape:", img.shape)
+            outputs = seg_model(img)
+            pred = np.squeeze(outputs.data.max(1)[1].cpu().numpy(), axis=0)  
+            print("Classes found: ", np.unique(pred))
+            print("pred shape: ",pred.shape)
+            gen_seg_loss= nn.CrossEntropyLoss(reduction='none')(torch.squeeze(pred), torch.squeeze(masked_target))
+ 
 
             optimizer_G.zero_grad()
             #print(torch.squeeze(gen_fake_seg).shape)
@@ -404,8 +430,9 @@ for epoch in range(opt.num_epochs):
             #print(torch.squeeze(gen_fake_seg).shape)
             #print(torch.squeeze(masked_target).shape)
 
-            loss_seg = nn.CrossEntropyLoss(reduction='none')(torch.squeeze(gen_fake_seg), torch.squeeze(masked_target))
-            loss_seg = weight_segmentation*loss_seg # Ensure that weights are scaled appropriately
+            #loss_seg = nn.CrossEntropyLoss(reduction='none')(torch.squeeze(gen_fake_seg), torch.squeeze(masked_target))
+            #loss_seg = weight_segmentation*loss_seg # Ensure that weights are scaled appropriately
+            loss_seg= gen_seg_loss
             loss_seg = torch.mean(loss_seg) # Sums the loss per image
 
             #loss_seg = F.cross_entropy(torch.squeeze(gen_fake_seg), torch.squeeze(masked_target))
@@ -445,6 +472,8 @@ for epoch in range(opt.num_epochs):
             loss = opt.lambda_seg * loss_seg + opt.lambda_disc * loss_D_left_g + opt.lambda_disc * loss_D_right_g + opt.lambda_recon*loss_recon_left + opt.lambda_recon*loss_recon_right
             loss.backward()
             optimizer_G.step() 
+
+
         losses_g = write_losses_g(loss, loss_seg,loss_D_left_g,loss_D_right_g,loss_recon_left,loss_recon_right)
         total_step += 1
         left_disc_weights= get_weights(left_D)
