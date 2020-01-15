@@ -15,508 +15,371 @@ from torch.autograd import Variable
 import math
 import os
 from tensorboardX import SummaryWriter
-import time
-import datetime
-
-from gan_model import CS_Dataset
-from gan_model import LeftDiscriminator, RightDiscriminator, ExPGenerator
 
 
-parser = argparse.ArgumentParser()
-parser.add_argument("--num_epochs", type=int, default=200, help="number of epochs of training")
-parser.add_argument("--mini_D_num_epochs", type=int, default=1, help="number of epochs of training D")
-parser.add_argument("--mini_G_num_epochs", type=int, default=1, help="number of epochs of training G")
-parser.add_argument("--batch_size", type=int, default=8, help="size of the batches")
-parser.add_argument("--lr_gen", type=float, default=0.0002, help="adam: learning rate for the generator")
-parser.add_argument("--lr_disc", type=float, default=0.002, help="adam: learning rate for the discriminator")
-parser.add_argument("--lambda_seg", type=float, default=1.0, help="loss scale term for segmentation loss")
-parser.add_argument("--lambda_disc", type=float, default=1.0, help="loss scale term for discriminator")
-parser.add_argument("--lambda_recon", type=float, default=1.0, help="loss scale term for reconstruction")
-parser.add_argument("--b1_gen", type=float, default=0.5, help="adam: decay of first order momentum of gradient, for the generator")
-parser.add_argument("--b2_gen", type=float, default=0.999, help="adam: decay of first order momentum of gradient, for the generator")
-parser.add_argument("--b1_disc", type=float, default=0.5, help="adam: decay of first order momentum of gradient, for the discriminator")
-parser.add_argument("--b2_disc", type=float, default=0.999, help="adam: decay of first order momentum of gradient, for the discriminator")
-parser.add_argument("--n_cpu", type=int, default=8, help="number of cpu threads to use during batch generation")
-parser.add_argument("--img_size", type=int, default=28, help="size of each image dimension")
-parser.add_argument("--n_critic", type=int, default=5, help="number of training steps for discriminator per iter")
-parser.add_argument("--clip_value", type=float, default=0.01, help="lower and upper clip value for disc. weights")
-parser.add_argument("--sample_interval", type=int, default=400, help="interval betwen image samples")
-parser.add_argument("--dataset_folder", type=str, default='/cluster/scratch/takmaza/DL/segs', help="dataset folder, directory which includes left8bit and gtFine folders")
-parser.add_argument("--model_save", type=str, default='/cluster/scratch/takmaza/DL/', help='specify the directory to save models')
-parser.add_argument("--log_frequency", type=int, default=20, help="log frequency in terms of steps")
-parser.add_argument("--logfile_name", type=str, default='logs.txt')
-parser.add_argument("--model_load", type=str, default="")
 
-opt = parser.parse_args()       
-print(opt)
 
-def get_model_name(opt):
-    writer_log_dir = os.path.join(opt.model_save, 'models')
-    curr_time = datetime.datetime.now()
-    writer_log_dir = os.path.join(writer_log_dir, str(curr_time.year) + '-' + str('%02d' %curr_time.month) + '-' + str('%02d' %curr_time.day) + '-' + str('%02d' %curr_time.hour) +str('%02d' %curr_time.minute)+ str('%02d' %curr_time.second)) #'_' + str(args.lr) 
-    if not os.path.exists(writer_log_dir):
-        os.makedirs(writer_log_dir)
-    return writer_log_dir
 
-model_save_dir = get_model_name(opt)
+######## TRANSFORMS.TOTENSOR
+class CS_Dataset(torchvision.datasets.Cityscapes):
+    def __init__(self,  root_folder='/cluster/scratch/oezyurty/cityscapes_data', split='train', mode='fine', target_type='semantic', transform=None, target_transform=None, transforms=None):
+        super(CS_Dataset, self).__init__(root_folder,split=split,mode=mode,target_type=target_type,transform=transform,target_transform=target_transform)
+        self.height = 1024
+        self.width = 2048
+        self.interp = Image.ANTIALIAS
+        self.resize = {}
+        self.num_scales = 3
 
-def save_opts(args):
-    """Save options to disk
-    """
-    models_dir = model_save_dir #os.path.join(model_save_dir, "model")
-    if not os.path.exists(models_dir):
-        os.makedirs(models_dir)
-    to_save = args.__dict__.copy()
+        for ii in range(self.num_scales):
+            s = 4 * (2**ii)
+            self.resize[ii] = torchvision.transforms.Resize((self.height // s, self.width // s),
+                                               interpolation=self.interp)
+            #print('in transformer')
+            #print(s)
+            #print(self.height // s)
+            #print(self.width // s)
 
-    with open(os.path.join(models_dir, 'opt.json'), 'w') as f:
-        json.dump(to_save, f, indent=2)
+    def __getitem__(self, index):
+        CITYSCAPES_MEAN = [0.28689554, 0.32513303, 0.28389177]
+        CITYSCAPES_STD = [0.18696375, 0.19017339, 0.18720214]
+        inputs = {}
+        loaded_img, loaded_sgmn = super(CS_Dataset, self).__getitem__(index)
+        #print('type: ', type(loaded_img)) #<class 'PIL.Image.Image'>
+        #print('Max val: ', np.max(np.asarray(loaded_img))) #255
+
+
+        #print('#'*40)
+        #print('SEGM IN LOADER')
+        #temp_seg = np.asarray(loaded_sgmn)
+        #print(temp_seg.shape)
+        #print('max: ', temp_seg.max())
+        #print(np.argmax(temp_seg,axis=0))
+
+
+        for ii in range(self.num_scales):
+            inputs[("img", ii)] = self.resize[ii](loaded_img)
+            inputs[("segm", ii)] = self.resize[ii](loaded_sgmn)
         
-def logging(str, log_file=opt.logfile_name, to_stdout=True):
-    with open(os.path.join(model_save_dir, log_file), 'a') as f:
-        f.write(str + '\n')
-    if to_stdout:
-        print(str)
         
-def to_categorical_np(y, num_classes):
-    """ 1-hot encodes a tensor """
-    return np.eye(num_classes, dtype='uint8')[y]
+        inputs[("cropped")] = torchvision.transforms.Normalize(mean=CITYSCAPES_MEAN, std=CITYSCAPES_STD)(torchvision.transforms.ToTensor()(torchvision.transforms.CenterCrop((256,256))(inputs[("img", 0)])))
+        inputs[("cropped_segm")] = torchvision.transforms.ToTensor()(torchvision.transforms.CenterCrop((256,256))(inputs[("segm", 0)]))
 
-def to_categorical_torch(y, num_columns):
-    """Returns one-hot encoded Variable"""
-    y_cat = np.zeros((y.shape[0], num_columns))
-    y_cat[range(y.shape[0]), y] = 1.0
-
-    return Variable(FloatTensor(y_cat))
-
-def write_losses_d(loss_D_left,loss_D_right):
-    losses = {}
-    losses["D_losses/loss_D_left"] = loss_D_left
-    losses["D_losses/loss_D_right"] = loss_D_right
-    return losses
-
-def write_losses_g(loss, loss_seg,loss_D_left,loss_D_right,loss_recon_left,loss_recon_right):
-    losses = {}
-    losses["G_losses/loss_seg"] = loss_seg
-    losses["G_losses/loss_D_left"] = loss_D_left
-    losses["G_losses/loss_D_right"] = loss_D_right
-    losses["G_losses/loss_recon_left"] = loss_recon_left
-    losses["G_losses/loss_recon_right"] = loss_recon_right
-    losses["total_loss"] = loss
-    return losses
-
-
-def call_logger(batch_idx, opt, total_step, mode="train"):
-    early_phase = batch_idx % opt.log_frequency == 0 and total_step < 2000
-    late_phase = total_step % 2000 == 0
-    return (early_phase or late_phase)
-       
-def save_model(left_D, right_D, generator_G):
-    logging("Saving models to {} ".format(model_save_dir))
-    torch.save({
-        "left_disc": left_D.state_dict(),
-        "right_disc": right_D.state_dict(),
-        "generator": generator_G.state_dict()
-        },
-        os.path.join(model_save_dir, "model.pt"))
-    
-def load_model(exp_img_shape):
-    logging('Loading models from {} '.format(opt.model_load))
-    #loaded = torch.load(os.path.join(model_save_dir, "model.pt"))
-    loaded = torch.load(opt.model_load)
-    
-    left_D = LeftDiscriminator(exp_img_shape)
-    right_D = RightDiscriminator(exp_img_shape)
-    generator_G = ExPGenerator()
-    
-    left_D.load_state_dict(loaded.get('left_disc'))
-    right_D.load_state_dict(loaded.get('right_disc'))
-    generator_G.load_state_dict(loaded.get('generator'))
-    return left_D, right_D, generator_G
-
-
-def img_denorm(img):
-    mean = np.asarray([0.28689554, 0.32513303, 0.28389177])
-    std = np.asarray([0.18696375, 0.19017339, 0.18720214])
+       # inputs[("img_left")] = torchvision.transforms.ToTensor(np.array(inputs[("img",0)])[:,:-128,:]).float() 
+       # inputs[("img_right")] = torchvision.transforms.ToTensor(np.array(inputs[("img",0)])[:,128:,:]).float()
         
-    denormalize = transforms.Normalize((-1 * mean / std), (1.0 / std))
+        ##inputs[("img_left")] = Image.fromarray(inputs[("img_left")])
+        ##inputs[("img_right")] = Image.fromarray(inputs[("img_right")])
 
-    res = img.squeeze(0)
-    res = denormalize(res)
+        for iii in range(self.num_scales):
+            inputs[("img", iii)] = torchvision.transforms.Normalize(mean=CITYSCAPES_MEAN, std=CITYSCAPES_STD)(torchvision.transforms.ToTensor()(inputs[("img", iii)] ))
+            inputs[("segm", iii)] = torchvision.transforms.ToTensor()(inputs[("segm", iii)])
 
-    #Image needs to be clipped since the denormalize function will map some
-    #values below 0 and above 1
-    res = torch.clamp(res, 0, 1)
-    return(res)
+            #print('denemece')
+            #print(inputs[("segm", iii)].shape)
+            #print(torch.nn.functional.one_hot(inputs[("segm", iii)].to(torch.int64), 33).shape)
+            #print(torch.nn.functional.one_hot(inputs[("segm", iii)].to(torch.int64), 33).permute(0,3,1,2).shape)
+            #print(torch.squeeze(torch.nn.functional.one_hot(inputs[("segm", iii)].to(torch.int64), 33).permute(0,3,1,2)).shape)
 
-        
-def log_tbx(writers, mode, batch, outputs, losses_d, losses_g, total_step):
-    """
-    Write an event to the tensorboard events file
-    """
-    writer = writers[mode]
-    for l, v in losses_d.items():
-        writer.add_scalar("{}".format(l), v, total_step)
+            #print('ICERIDE')
+            #print(inputs[("segm", iii)])
+            #print(inputs[("segm", iii)].shape)
 
-    for l, v in losses_g.items():
-        writer.add_scalar("{}".format(l), v, total_step)
+            inputs[("segm", iii)] = torch.squeeze(torch.nn.functional.one_hot((torch.round(inputs[("segm", iii)]*255/42)).to(torch.int64), 7).permute(0,3,1,2)).float()
 
-    for j in range(min(4, opt.batch_size)):  
-        writer.add_image(
-            "input/{}".format(j),
-            img_denorm(batch[("img",0)][j]).data, total_step)
+        inputs[("cropped_segm")] = torch.squeeze(torch.nn.functional.one_hot((torch.round(inputs[("cropped_segm")]*255/42)).to(torch.int64), 7).permute(0,3,1,2)).float()
 
-        writer.add_image(
-            "generated/{}".format(j),
-            img_denorm(outputs[("generated")][j]), total_step)
-
-        writer.add_image(
-            "generated_normalized/{}".format(j),
-            outputs[("generated")][j], total_step)
+        return inputs
 
 
-### MAIN
+def conv3x3(in_channels, out_channels, dilation_factor=1,stride=1, groups=1, ):
+    """3x3 convolution with padding"""
+    return nn.Conv2d(in_channels, out_channels, kernel_size=3, stride=stride, dilation=dilation_factor,bias=False, padding=dilation_factor) #padding=dilation
 
-logging(str(opt))
-exp_img_shape = (3, 256, 384)
-cuda = True if torch.cuda.is_available() else False
-print('cuda status: ', cuda)
-Tensor = torch.cuda.FloatTensor if cuda else torch.FloatTensor
+class ResidualBlock(nn.Module):
+    def __init__(self, in_channels=256, out_channels=256, dilation_factor=2, stride=1, downsample=None, groups=1,
+                 base_width=64, dilation=1, norm_layer=None):
+        super(ResidualBlock, self).__init__()
+        self.conv1 = conv3x3(in_channels, out_channels, dilation_factor=dilation_factor)
+        self.norm_layer=nn.BatchNorm2d(out_channels)
+        self.relu = nn.LeakyReLU(0.2, inplace=True)
 
+    def forward(self, x):
+        identity = x
+        #print(identity.shape)
+        out = self.conv1(x)
+        #print(out.shape)
+        out = self.norm_layer(out)
+        #print(out.shape)
+        out += identity
+      
+        out = self.relu(out)
+        return out
+      
+class DownBlock(nn.Module):
+    def __init__(self, in_feat=3, out_feat=32,kernel_size=3):
+        super(DownBlock, self).__init__()
 
-train_dataset = CS_Dataset(opt.dataset_folder, split='train', mode='fine', target_type='semantic', transform=None, target_transform=None, transforms=None)
-val_dataset = CS_Dataset(opt.dataset_folder, split='val', mode='fine', target_type='semantic', transform=None, target_transform=None, transforms=None)
+        def down_block(in_feat=3, out_feat=32,kernel_size=3):
+            layers = [nn.Conv2d(in_feat, out_feat,kernel_size, stride=2, padding=(kernel_size-1)//2)]
+            layers.append(nn.BatchNorm2d(out_feat, 0.8))
+            layers.append(nn.LeakyReLU(0.2, inplace=True))
+            return nn.Sequential(*layers)
 
-train_loader = DataLoader(
-    train_dataset, opt.batch_size, True,
-    num_workers=1, pin_memory=True, drop_last=True)
+        # Both self.conv1 and self.downsample layers downsample the input when stride != 1
+        self.block = down_block(in_feat=in_feat, out_feat=out_feat,kernel_size=kernel_size)
 
-val_loader = DataLoader(
-    val_dataset, opt.batch_size, True,
-    num_workers=1, pin_memory=True, drop_last=True)
+    def forward(self, x):
+        out = self.block(x)
+        return out
 
+class UpBlock(nn.Module):
+    def __init__(self, in_feat=64, out_feat=32, scale_factor = 2, kernel_size=3, normalize=True,padding=0):
+        super(UpBlock, self).__init__()
 
-if opt.model_load == "":
-    left_D = LeftDiscriminator(exp_img_shape)
-    right_D = RightDiscriminator(exp_img_shape)
-    generator_G = ExPGenerator()
-else:
-    left_D, right_D, generator_G = load_model(exp_img_shape)
+        def up_block( in_feat, out_feat, scale_factor = 2, kernel_size=3, normalize=True,padding=0):
+            layers = [nn.Upsample(scale_factor = scale_factor, mode='bilinear')]
+            layers.append(nn.ReflectionPad2d(1))
+            layers.append(nn.Conv2d(in_feat, out_feat, kernel_size=kernel_size, stride=1, padding=padding))
+            if normalize:
+                layers.append(nn.BatchNorm2d(out_feat, 0.8))
+                layers.append(nn.LeakyReLU(0.2, inplace=True))
+            return nn.Sequential(*layers)
+          
+        # Both self.conv1 and self.downsample layers downsample the input when stride != 1
+        self.block = up_block(in_feat=in_feat, out_feat=out_feat, scale_factor = scale_factor, kernel_size=kernel_size, normalize=normalize,padding=padding)
 
-if cuda:
-    left_D.cuda()
-    right_D.cuda()
-    generator_G.cuda()
-    
-    
-optimizer_G = torch.optim.Adam(generator_G.parameters(), lr=opt.lr_gen, betas=(opt.b1_gen, opt.b2_gen))
-optimizer_D_left = torch.optim.Adam(left_D.parameters(), lr=opt.lr_disc, betas=(opt.b1_disc, opt.b2_disc))
-optimizer_D_right = torch.optim.Adam(right_D.parameters(), lr=opt.lr_disc, betas=(opt.b1_disc, opt.b2_disc))
-
-adversarial_loss = torch.nn.BCELoss()
-
-#### BECAME OLD NOW
-def add_noise(ins, is_training=True, mean=0, stddev=0.01):
-    if is_training:
-        noise = Variable(ins.data.new(ins.size()).normal_(mean, stddev))
-        return ins + noise
-    return ins
-
-def mask_segm(full_segm, cropped_segm):
-    return full_segm
-
-####Define weight matrix for segmentation loss
-mask_row = np.zeros((1,512))
-def sigmoid(start=0,end=128, c1=0.1,c2=0):
-    x = np.arange(start,end)
-    return (1 / (1 + np.exp(-1 * c1 * (x-c2))))    
-mask_row[0,0:128] = sigmoid(0,128,c2=64)
-mask_row[0,128:256] = 1-sigmoid(128,256,c2=192)
-mask_row[0,256:384] = sigmoid(256,384,c2=320)
-mask_row[0,384:512] =  1-sigmoid(384,512,c2=448)
-mask_tensor = torch.from_numpy(np.squeeze(mask_row)).float()
-mask_tensor_rec_left = torch.from_numpy(np.squeeze(mask_row[:,0:128])).float()
-mask_tensor_rec_right = torch.from_numpy(np.squeeze(mask_row[:,384:512])).float()
+    def forward(self, x):
+        out = self.block(x)
+        return out
 
 
-total_step = 0
-mini_D_num_epochs = opt.mini_D_num_epochs
-mini_G_num_epochs = opt.mini_G_num_epochs
+class ExPGenerator(nn.Module):
+    def __init__(self, seg_class_num = 7, seg_encoding_num=7, im_size=(256, 512), exp_size=(256,128)):
+        super(ExPGenerator, self).__init__()
 
-writers = {}
-for mode in ["train", "val"]:
-    writers[mode] = SummaryWriter(os.path.join(model_save_dir, mode))
-    
-best_val_loss = None
-
-#Make networks multigpu available
-if torch.cuda.device_count() > 1:
-    print("There are", torch.cuda.device_count(), "gpus available.")
-    left_D = nn.DataParallel(left_D)
-    right_D= nn.DataParallel(right_D)
-    generator_G = nn.DataParallel(generator_G)
-
-print('Switched to training mode')
-for epoch in range(opt.num_epochs):
-    print('#'*30)
-    print('Epoch:', epoch)
-    #Switch models to training mode
-    left_D.train()
-    right_D.train()
-    generator_G.train()
-    for batch_idx, batch in enumerate(train_loader):
-        weight_segmentation = mask_tensor.repeat(batch['cropped'].size(0), 256, 1)
-        weight_rec_left = mask_tensor_rec_left.repeat(batch['cropped'].size(0), 3, 256, 1)
-        weight_rec_right = mask_tensor_rec_right.repeat(batch['cropped'].size(0), 3, 256, 1)
-
-        if cuda: 
-            weight_segmentation = weight_segmentation.cuda()
-            weight_rec_left = weight_rec_left.cuda()
-            weight_rec_right = weight_rec_right.cuda()
-
-        #if batch_idx % 200 == 0:
-        #    print('batch_idx: ',  batch_idx)
-        #print('#'*20)
-        for epoch_D in range(mini_D_num_epochs):
-            #print('epoch_D: ', epoch_D)
-            source_img = batch["cropped"]
-            source_segm = batch["cropped_segm"]
-            true_im = add_noise(batch["img",0]) #Before cropping original image  noise needs to be added 
-            source_img = source_img.cuda()
-            source_segm = source_segm.cuda()
-            true_im = true_im.cuda()
-            gen_fake_left, gen_fake_right, gen_fake_seg = generator_G(source_img, source_segm)
-
-            fake_left = torch.cat((gen_fake_left.detach(), source_img), dim=3)
-            fake_right= torch.cat((source_img, gen_fake_right.detach()), dim=3)
-            true_left = true_im[:, : , :, 0:exp_img_shape[-1]]
-            true_right = true_im[:, :, : , -exp_img_shape[-1]:]
-
-            true_lbl = Variable(Tensor(source_img.size(0), 1).fill_(1), requires_grad=False)
-            fake_lbl = Variable(Tensor(source_img.size(0), 1).fill_(0), requires_grad=False)
-            true_lbl = true_lbl.cuda()
-            fake_lbl = fake_lbl.cuda()
-
-            lbls = torch.squeeze(torch.cat((true_lbl, fake_lbl), dim=0))
-            left_imgs = torch.cat((true_left, fake_left), dim=0)
-            right_imgs = torch.cat((true_right, fake_right), dim=0)
-
-            lbl_est_left = left_D(left_imgs)
-            loss_D_left = adversarial_loss(torch.squeeze(lbl_est_left), torch.squeeze(lbls))
-
-            optimizer_D_left.zero_grad()
-            loss_D_left.backward()
-            optimizer_D_left.step()
-
-            lbl_est_right = right_D(right_imgs)
-            loss_D_right =adversarial_loss(torch.squeeze(lbl_est_right), torch.squeeze(lbls))
-
-            #print('#'*50)
-            #print('lbl_est shape: ', torch.squeeze(lbl_est_right).shape)
-            #print('lbls shape: ', torch.squeeze(lbls).shape)
-            #print('lbl_est_left: ', lbl_est_left)
-            #print('lbl_est_right: ', lbl_est_right)
-            #print('lbls: ', lbls)
-            #print('loss_D_left: ',loss_D_left)
-            #print('loss_D_right: ',loss_D_right)
-
-            optimizer_D_right.zero_grad()
-            loss_D_right.backward()
-            optimizer_D_right.step()
-
-        losses_d = write_losses_d(loss_D_left,loss_D_right)
-
-        for epoch_G in range(mini_G_num_epochs):
-            #print('epoch_G: ', epoch_G)
-            source_img = batch["cropped"]
-            source_segm = batch["cropped_segm"]
-            true_im = batch["img",0]
-            true_segm = batch["segm",0]
-            source_img = source_img.cuda()
-            source_segm = source_segm.cuda()
-            true_im = true_im.cuda()
-            true_segm = true_segm.cuda()
-            #print(true_segm.shape)
-            masked_target = mask_segm(true_segm, source_segm).to(torch.int64)
-            orj_left = true_im[:,:,:, 0:128]
-            orj_right = true_im[:,:,:, -128:]
-
-            gen_fake_left, gen_fake_right, gen_fake_seg = generator_G(source_img, source_segm)
-
-            fake_left = torch.cat((gen_fake_left, source_img), dim=3)
-            fake_right= torch.cat((source_img, gen_fake_right), dim=3)
-            fake_lbl = Variable(Tensor(source_img.size(0), 1).fill_(0.0), requires_grad=False)
-            fake_lbl = fake_lbl.cuda()
-            #GET DISCRIMINATOR RESULTS
-            lbl_est_left = left_D(fake_left)
-            lbl_est_right = right_D(fake_right)
-
-
-            optimizer_G.zero_grad()
-            #print(torch.squeeze(gen_fake_seg).shape)
-            #print(torch.squeeze(masked_target).shape)
+            #original image processing part
+        self.im_down1 = DownBlock(3,32, kernel_size=7)
+        self.im_down2 = DownBlock(32,64, kernel_size=3)
+        self.im_down3 = DownBlock(64,128, kernel_size=3)
+        self.im_down4 = DownBlock(128,256, kernel_size=3)
             
-            #print('SHAPE:')
-            #print('gen_fake_seg', torch.squeeze(gen_fake_seg).shape)
-            #print('masked_target_before_max', torch.squeeze(masked_target).shape)
-            _, masked_target = masked_target.max(dim=1)
-            #print('masked_target_after_max', torch.squeeze(masked_target).shape)
-            #nn.CrossEntropyLoss()(out, Variable(targets))
-            #print(torch.squeeze(gen_fake_seg).shape)
-            #print(torch.squeeze(masked_target).shape)
+            #segmentation processing part
+        self.seg_down0 = nn.Conv2d(seg_class_num, seg_encoding_num, kernel_size=1, stride=1)
+        self.seg_down1 = DownBlock(seg_encoding_num, 32, kernel_size=7)
+        self.seg_down2 = DownBlock(32,64, kernel_size=3)
+        self.seg_down3 = DownBlock(64,128, kernel_size=3)
+        self.seg_down4 = DownBlock(128,256, kernel_size=3)
 
-            loss_seg = nn.CrossEntropyLoss(reduction='none')(torch.squeeze(gen_fake_seg), torch.squeeze(masked_target))
-            loss_seg = weight_segmentation*loss_seg # Ensure that weights are scaled appropriately
-            loss_seg = torch.mean(loss_seg) # Sums the loss per image
+            #Residual part        
+        self.res1 = ResidualBlock(512, 512, dilation_factor=2)
+        self.res2 = ResidualBlock(512, 512, dilation_factor=2)
+        self.res3 = ResidualBlock(512, 512, dilation_factor=4)
+        self.res4 = ResidualBlock(512, 512, dilation_factor=4)
+        self.res5 = ResidualBlock(512, 512, dilation_factor=8)
+        self.res6 = ResidualBlock(512, 512, dilation_factor=8)
 
-            #loss_seg = F.cross_entropy(torch.squeeze(gen_fake_seg), torch.squeeze(masked_target))
-
-            loss_D_left_g = adversarial_loss(torch.squeeze(lbl_est_left), torch.squeeze(fake_lbl))
-            loss_D_right_g = adversarial_loss(torch.squeeze(lbl_est_right), torch.squeeze(fake_lbl))
-
-            #print(loss_seg.requires_grad)
-                
-            loss_recon_left = nn.MSELoss(reduction='none')(gen_fake_left, orj_left)
-            #print(loss_recon_left.shape)
-            #print(weight_rec_left.shape)
-            loss_recon_left = weight_rec_left*loss_recon_left # Ensure that weights are scaled appropriately
-            loss_recon_left = torch.mean(loss_recon_left) # Sums the loss per image
-            loss_recon_right = nn.MSELoss(reduction='none')(gen_fake_right, orj_right)
-            loss_recon_right = weight_rec_right*loss_recon_right # Ensure that weights are scaled appropriately
-            loss_recon_right = torch.mean(loss_recon_right) # Sums the loss per image
-
-            #loss_recon_left = F.mse_loss(gen_fake_left, orj_left)
-            #loss_recon_right = F.mse_loss(gen_fake_right, orj_right)
-
-            #print('++'*50)
-            #print('GENERATOR EPOCH')
-            #print('lbl_est shape: ', torch.squeeze(lbl_est_right).shape)
-            #print('lbls shape: ', torch.squeeze(lbls).shape)
-            #print('lbl_est_left: ', lbl_est_left)
-            #print('lbl_est_right: ', lbl_est_right)
-            #print('lbls: ', lbls)
-            #print('loss_D_left: ',loss_D_left_g)
-            #print('loss_D_right: ',loss_D_right_g)
+            #Image Upsample for Left Extrapolation
+        self.im_up1_left = UpBlock(512,256, kernel_size=3)
+        self.im_up2_left = UpBlock(256,128, scale_factor=(1.25 , 1), kernel_size=3)
+        self.im_up3_left = UpBlock(128,64, kernel_size=3)
+        self.im_up4_left = UpBlock(64,32, scale_factor=(1.25 , 1), kernel_size=3)
+        self.im_up5_left = UpBlock(32,16, kernel_size=3)
+        self.im_up6_left = UpBlock(16,3, scale_factor=(1.25 , 1), kernel_size=3)
+        self.im_up7_left = nn.Upsample(size = exp_size, mode='bilinear')
 
 
-            loss = opt.lambda_seg * loss_seg - opt.lambda_disc * loss_D_left_g - opt.lambda_disc * loss_D_right_g + opt.lambda_recon*loss_recon_left + opt.lambda_recon*loss_recon_right
-            loss.backward()
-            optimizer_G.step() 
-        losses_g = write_losses_g(loss, loss_seg,loss_D_left_g,loss_D_right_g,loss_recon_left,loss_recon_right)
-        total_step += 1
+        #Image Upsample for Right Extrapolation
+        self.im_up1_right = UpBlock(512,256, kernel_size=3)
+        self.im_up2_right = UpBlock(256,128, scale_factor=(1.25 , 1), kernel_size=3)
+        self.im_up3_right = UpBlock(128,64, kernel_size=3)
+        self.im_up4_right = UpBlock(64,32, scale_factor=(1.25 , 1), kernel_size=3)
+        self.im_up5_right = UpBlock(32,16, kernel_size=3)
+        self.im_up6_right = UpBlock(16,3, scale_factor=(1.25 , 1), kernel_size=3)
+        self.im_up7_right = nn.Upsample(size = exp_size, mode='bilinear')
+      
+        #Segmentaion upsample part
+        self.seg_up1 = UpBlock(512,256, kernel_size=3)
+        self.seg_up2 = UpBlock(256,256, scale_factor=(1 , 1.25), kernel_size=3)
+        self.seg_up3 = UpBlock(256,128, kernel_size=3)
+        self.seg_up4 = UpBlock(128,128, scale_factor=(1 , 1.25), kernel_size=3)
+        self.seg_up5 = UpBlock(128,64, kernel_size=3)
+        self.seg_up6 = UpBlock(64,32, scale_factor=(1 , 1.25), kernel_size=3)
+        self.seg_up7 = UpBlock(32,3, kernel_size=7, padding=2, normalize=False)
+        self.seg_up8 = nn.Upsample(size = im_size, mode='bilinear')
+        self.seg_up9 = nn.ConvTranspose2d(3, seg_class_num, kernel_size=1)
+        self.seg_out = nn.Softmax(dim=1)
+          #  nn.Linear(1024, int(np.prod(img_shape))),  # DUZELT
+          #  nn.Tanh()                   # DUZELT
+            
         
-        if call_logger(batch_idx, opt, total_step):
-            outputs = {}
-            outputs['generated']= torch.cat((fake_left,gen_fake_right), dim=3)
-            log_tbx(writers, "train", batch, outputs, losses_d, losses_g, total_step)
+    def forward(self,  im_in, seg_in): #input_tensor
+        '''
+        This function produces 3 outputs: 
+        im_out_left -> only the left part of the extrapolation with size (3,256,128)
+        im_out_right -> only the right part of the extrapolation with size (3,256,128)
+        seg_out -> full reconstruction of the segmentation with size (3,256,512)
+        '''
 
-    #IMPLEMENT VALIDATION
-    #Switch models to evaluation mode
-    print('Switched to eval mode')
-    left_D.eval()
-    right_D.eval()
-    generator_G.eval()
-    val_loss = 0
-    for batch_idx, batch in enumerate(val_loader):
-        weight_segmentation = mask_tensor.repeat(batch['cropped'].size(0), 256, 1)
-        weight_rec_left = mask_tensor_rec_left.repeat(batch['cropped'].size(0), 3, 256, 1)
-        weight_rec_right = mask_tensor_rec_right.repeat(batch['cropped'].size(0), 3, 256, 1)
-
-        if cuda: 
-            weight_segmentation = weight_segmentation.cuda()
-            weight_rec_left = weight_rec_left.cuda()
-            weight_rec_right = weight_rec_right.cuda()
-
-        #print('epoch_G: ', epoch_G)
-        source_img = batch["cropped"]
-        source_segm = batch["cropped_segm"]
-        true_im = batch["img",0]
-        true_segm = batch["segm",0]
-        source_img = source_img.cuda()
-        source_segm = source_segm.cuda()
-        true_im = true_im.cuda()
-        true_segm = true_segm.cuda()
-        #print(true_segm.shape)
-        masked_target = mask_segm(true_segm, source_segm).to(torch.int64)
-        orj_left = true_im[:,:,:, 0:128]
-        orj_right = true_im[:,:,:, -128:]
-
-        gen_fake_left, gen_fake_right, gen_fake_seg = generator_G(source_img, source_segm)
-
-        fake_left = torch.cat((gen_fake_left, source_img), dim=3)
-        fake_right= torch.cat((source_img, gen_fake_right), dim=3)
-        true_left = true_im[:, : , :, 0:exp_img_shape[-1]]
-        true_right = true_im[:, :, : , -exp_img_shape[-1]:]
-        true_lbl = Variable(Tensor(source_img.size(0), 1).fill_(1.0), requires_grad=False)
-        fake_lbl = Variable(Tensor(source_img.size(0), 1).fill_(0.0), requires_grad=False)
-        true_lbl = true_lbl.cuda()
-        fake_lbl = fake_lbl.cuda()
-
-        lbls = torch.squeeze(torch.cat((true_lbl, fake_lbl), dim=0))
-        left_imgs = torch.cat((true_left, fake_left), dim=0)
-        right_imgs = torch.cat((true_right, fake_right), dim=0)
-
-        # for the calculation of the Disc loss
-        lbl_est_left = left_D(left_imgs)
-        loss_D_left = adversarial_loss(torch.squeeze(lbl_est_left), torch.squeeze(lbls))
-        lbl_est_right = right_D(right_imgs)
-        loss_D_right =adversarial_loss(torch.squeeze(lbl_est_right), torch.squeeze(lbls))
-
-
-        #GET DISCRIMINATOR RESULTS
-        # for the calculation of the Gen loss
-        # az oncekinin son sekiz tanesini alsak da olurdu aslinda
-        lbl_est_left = left_D(fake_left)
-        lbl_est_right = right_D(fake_right)
-
-        optimizer_G.zero_grad()
-        #print(torch.squeeze(gen_fake_seg).shape)
-        #print(torch.squeeze(masked_target).shape)
-
-        _, masked_target = masked_target.max(dim=1)
-        #nn.CrossEntropyLoss()(out, Variable(targets))
-        loss_seg = nn.CrossEntropyLoss(reduction='none')(torch.squeeze(gen_fake_seg), torch.squeeze(masked_target))
-        loss_seg = weight_segmentation*loss_seg # Ensure that weights are scaled appropriately
-        loss_seg = torch.mean(loss_seg) # Sums the loss per image
-
-        #loss_seg = F.cross_entropy(torch.squeeze(gen_fake_seg), torch.squeeze(masked_target))
-
-        loss_D_left_g = adversarial_loss(torch.squeeze(lbl_est_left), torch.squeeze(fake_lbl))
-        loss_D_right_g = adversarial_loss(torch.squeeze(lbl_est_right), torch.squeeze(fake_lbl))
-
-        #print(loss_seg.requires_grad)
-
-        loss_recon_left = nn.MSELoss(reduction='none')(gen_fake_left, orj_left)
-        loss_recon_left = weight_rec_left*loss_recon_left # Ensure that weights are scaled appropriately
-        loss_recon_left = torch.mean(loss_recon_left) # Sums the loss per image
-        loss_recon_right = nn.MSELoss(reduction='none')(gen_fake_right, orj_right)
-        loss_recon_right = weight_rec_right*loss_recon_right # Ensure that weights are scaled appropriately
-        loss_recon_right = torch.mean(loss_recon_right) # Sums the loss per image
-
-        #loss_recon_left = F.mse_loss(gen_fake_left, orj_left)
-        #loss_recon_right = F.mse_loss(gen_fake_right, orj_right)
-
-        loss = opt.lambda_seg * loss_seg - opt.lambda_disc * loss_D_left_g - opt.lambda_disc * loss_D_right_g + opt.lambda_recon*loss_recon_left + opt.lambda_recon*loss_recon_right
+        #print(im_in.shape)
+        #print(seg_in.shape)
+        im_d1 = self.im_down1(im_in)
+        im_d2 = self.im_down2(im_d1)
+        im_d3 = self.im_down3(im_d2)
+        im_d4 = self.im_down4(im_d3)
         
-        batch_loss = loss.item()
-        val_loss+=batch_loss
+        #print('#'*10)
+        #print(type(seg_in))
+        #print(seg_in.dtype)
+        seg_d0 = self.seg_down0(seg_in)
+        seg_d1 = self.seg_down1(seg_d0)
+        seg_d2 = self.seg_down2(seg_d1)
+        seg_d3 = self.seg_down3(seg_d2)
+        seg_d4 = self.seg_down4(seg_d3)
+        
+        #print('lol')
+        #print(im_d4.shape)
+        #print(seg_d4.shape)
 
-    logging("Epoch {}: validation_loss={}, best_validation_loss={} ".format(epoch, val_loss ,best_val_loss))
-    
-    # last batch
-    losses_d = write_losses_d(loss_D_left,loss_D_right)
-    losses_g = write_losses_g(loss, loss_seg,loss_D_left_g,loss_D_right_g,loss_recon_left,loss_recon_right)
+        conc_l=  torch.cat([im_d4, seg_d4], dim=1)
+        #print(conc_l.shape)
+        res_l1 = self.res1(conc_l)
+        res_l2 = self.res2(res_l1)
+        res_l3 = self.res3(res_l2)
+        res_l4 = self.res4(res_l3)
+        res_l5 = self.res5(res_l4)
+        res_l6 = self.res6(res_l5)
+        
+        im_u1_left = self.im_up1_left(res_l6)
+        im_u2_left = self.im_up2_left(im_u1_left)
+        im_u3_left = self.im_up3_left(im_u2_left)
+        im_u4_left = self.im_up4_left(im_u3_left)
+        im_u5_left = self.im_up5_left(im_u4_left)
+        im_u6_left = self.im_up6_left(im_u5_left)
+        im_out_left = self.im_up7_left(im_u6_left)
 
-    outputs = {}
-    outputs['generated']= torch.cat((fake_left,gen_fake_right), dim=3)
-    log_tbx(writers, "val", batch, outputs, losses_d, losses_g, total_step)
+        im_u1_right = self.im_up1_right(res_l6)
+        im_u2_right = self.im_up2_right(im_u1_right)
+        im_u3_right = self.im_up3_right(im_u2_right)
+        im_u4_right = self.im_up4_right(im_u3_right)
+        im_u5_right = self.im_up5_right(im_u4_right)
+        im_u6_right = self.im_up6_right(im_u5_right)
+        im_out_right = self.im_up7_right(im_u6_right)
+        
+        seg_u1 = self.seg_up1(res_l6)
+        seg_u2 = self.seg_up2(seg_u1)
+        seg_u3 = self.seg_up3(seg_u2)
+        seg_u4= self.seg_up4(seg_u3)
+        seg_u5= self.seg_up5(seg_u4)
+        seg_u6= self.seg_up6(seg_u5)
+        seg_u7= self.seg_up7(seg_u6)
+        seg_u8= self.seg_up8(seg_u7)
+        seg_out_bf_softmax = self.seg_up9(seg_u8)
+        seg_out = self.seg_out(seg_out_bf_softmax)
 
-    if best_val_loss is None or val_loss < best_val_loss: 
-        best_val_loss = val_loss
-        #save_model(left_D, right_D, generator_G)
+        return im_out_left , im_out_right, seg_out
 
-    if epoch % 5 == 0:
-        save_model(left_D, right_D, generator_G)
+#Discriminator
+def calculate_hw_conv(h_in, w_in, kernel_size, stride=1 , padding=0, dilation=1):
+    h = math.floor((h_in + 2*padding - dilation*(kernel_size-1 ) -1)/stride + 1)
+    w = math.floor((w_in + 2*padding - dilation*(kernel_size-1 ) -1)/stride + 1) 
+    return h , w
 
-# log
+class LeftDiscriminator(nn.Module):
+    def __init__(self, img_shape = (3, 256, 384)):
+        super(LeftDiscriminator, self).__init__()
 
+      #  self.model = nn.Sequential(
+      #      nn.Linear(int(np.prod(img_shape)), 512),
+      #      nn.LeakyReLU(0.2, inplace=True),
+      #      nn.Linear(512, 256),
+      #      nn.LeakyReLU(0.2, inplace=True),
+      #      nn.Linear(256, 1),
+      #      nn.Sigmoid()
+      #  )
+        ch_num =64
+        sz = np.array(img_shape) #np.shape idi
+        h, w = calculate_hw_conv(sz[1], sz[2], kernel_size=7, stride=1 , padding=0, dilation=1)
+        h, w = calculate_hw_conv(h, w, kernel_size=5, stride=2 , padding=0, dilation=1)
+        h, w = calculate_hw_conv(h, w, kernel_size=5, stride=2 , padding=0, dilation=1)
+        h, w = calculate_hw_conv(h, w, kernel_size=3, stride=1, padding=0, dilation=1)
+        vec_len = int(h*w*ch_num)
+      
+        self.model = nn.Sequential(
+            nn.Conv2d(3, 32, 7, stride=1, padding=0),
+            nn.LeakyReLU(0.2, inplace=True),
+            nn.Conv2d(32, 64, 5, stride=2, padding=0),
+            nn.LeakyReLU(0.2, inplace=True),
+            nn.Conv2d(64, ch_num, 5, stride=2, padding=0),
+            nn.LeakyReLU(0.2, inplace=True),
+            nn.AvgPool2d(3), 
+            nn.Flatten(),
+            nn.Linear(38400, 256), #BURAYA INPUT SIZE LAZIMMMMMMMMM
+            nn.LeakyReLU(0.2, inplace=True),
+            nn.Linear(256, 1),
+            nn.Sigmoid()
+        )
+    def forward(self, img):
+        validity = self.model(img)
+        return validity
+      
+class RightDiscriminator(nn.Module):
+    def __init__(self, img_shape = (3, 256, 384)):
+        super(RightDiscriminator, self).__init__()
+        ch_num =64
+        sz = np.array(img_shape) #np.shape idi
+        h, w = calculate_hw_conv(sz[1], sz[2], kernel_size=7, stride=1 , padding=0, dilation=1)
+        h, w = calculate_hw_conv(h, w, kernel_size=5, stride=2 , padding=0, dilation=1)
+        h, w = calculate_hw_conv(h, w, kernel_size=5, stride=2 , padding=0, dilation=1)
+        h, w = calculate_hw_conv(h, w, kernel_size=3, stride=1, padding=0, dilation=1)
+        vec_len = int(h*w*ch_num)
+        self.model = nn.Sequential(
+            nn.Conv2d(3, 32, 7, stride=1, padding=0),
+            nn.LeakyReLU(0.2, inplace=True),
+            nn.Conv2d(32, 64, 5, stride=2, padding=0),
+            nn.LeakyReLU(0.2, inplace=True),
+            nn.Conv2d(64, ch_num, 5, stride=2, padding=0),
+            nn.LeakyReLU(0.2, inplace=True),
+            nn.AvgPool2d(3), 
+            nn.Flatten(),
+            nn.Linear(38400, 256), #BURAYA INPUT SIZE LAZIMMMMMMMMM
+            nn.LeakyReLU(0.2, inplace=True),
+            nn.Linear(256, 1),
+            nn.Sigmoid()
+        )
+    def forward(self, img):
+        validity = self.model(img)
+        return validity
 
+class Discriminator(nn.Module):
+    def __init__(self, in_channels=3, scale_factor=1):
+        super(Discriminator, self).__init__()
+
+        def discriminator_block(in_filters, out_filters, normalization=True):
+            """Returns downsampling layers of each discriminator block"""
+            layers = [nn.Conv2d(in_filters, out_filters, 4, stride=2, padding=1)]
+            if normalization:
+                layers.append(nn.InstanceNorm2d(out_filters))
+            layers.append(nn.LeakyReLU(0.2, inplace=True))
+            return layers
+          
+        self.scale_factor = scale_factor
+        
+        self.model = nn.Sequential(
+            *discriminator_block(in_channels, 32, normalization=False),
+            *discriminator_block(32, 64),
+            *discriminator_block(64, 128),
+            *discriminator_block(128, 256),
+            nn.Sigmoid()
+        )
+
+    def forward(self, img_Full):
+        img_input = self.downscale(img_Full)
+        return self.model(img_input)
+  
+def initialize_weights(m):
+    classname = m.__class__.__name__
+    if classname.find('Conv') != -1:
+        m.weight.data.normal_(0.0, 0.02)
+    elif classname.find('BatchNorm') != -1:
+        m.weight.data.normal_(1.0, 0.02)
+        m.bias.data.fill_(0)
