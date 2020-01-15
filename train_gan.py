@@ -59,6 +59,8 @@ def get_model_name(opt):
     return writer_log_dir
 
 model_save_dir = get_model_name(opt)
+print('#'*50)
+print('MODEL DIRECTORY: ', model_save_dir)
 
 def save_opts(args):
     """Save options to disk
@@ -148,7 +150,7 @@ def img_denorm(img):
     res = torch.clamp(res, 0, 1)
     return(res)
 
-        
+
 def log_tbx(writers, mode, batch, outputs, left_weights, right_weights, gen_weights,losses_d, losses_g, total_step):
     """
     Write an event to the tensorboard events file
@@ -160,7 +162,7 @@ def log_tbx(writers, mode, batch, outputs, left_weights, right_weights, gen_weig
     for l, v in losses_g.items():
         writer.add_scalar("{}".format(l), v, total_step)
 
-    for j in range(min(4, opt.batch_size)):  
+    for j in range(min(6, opt.batch_size)):  
         writer.add_image(
             "input/{}".format(j),
             img_denorm(batch[("img",0)][j]).data, total_step)
@@ -172,6 +174,16 @@ def log_tbx(writers, mode, batch, outputs, left_weights, right_weights, gen_weig
         writer.add_image(
             "generated_normalized/{}".format(j),
             outputs[("generated")][j], total_step)
+
+        
+        writer.add_image(
+            "seg/{}".format(j),
+            np.expand_dims((30*torch.argmax(batch[("segm",0)][j], dim=0)).numpy(),axis=0).astype(np.uint8), total_step)
+
+        
+        writer.add_image(
+            "seg_generated/{}".format(j),
+            np.expand_dims((30*torch.argmax(outputs[("generated_segs")][j], dim=0)).cpu().data,axis=0).astype(np.uint8), total_step)
 
     for l, v in enumerate(left_weights):
         writer.add_histogram("left_disc_weights/layer:{}".format(l), v, total_step)
@@ -246,10 +258,12 @@ mask_row = np.zeros((1,512))
 def sigmoid(start=0,end=128, c1=0.1,c2=0):
     x = np.arange(start,end)
     return (1 / (1 + np.exp(-1 * c1 * (x-c2))))    
+
 mask_row[0,0:128] = sigmoid(0,128,c2=64)
 mask_row[0,128:256] = 1-sigmoid(128,256,c2=192)
 mask_row[0,256:384] = sigmoid(256,384,c2=320)
 mask_row[0,384:512] =  1-sigmoid(384,512,c2=448)
+
 mask_tensor = torch.from_numpy(np.squeeze(mask_row)).float()
 mask_tensor_rec_left = torch.from_numpy(np.squeeze(mask_row[:,0:128])).float()
 mask_tensor_rec_right = torch.from_numpy(np.squeeze(mask_row[:,384:512])).float()
@@ -273,9 +287,9 @@ if torch.cuda.device_count() > 1:
     generator_G = nn.DataParallel(generator_G)
 
 #try initializing weights
-#left_D.apply(initialize_weights)
-#right_D.apply(initialize_weights)
-#generator_G.apply(initialize_weights)
+left_D.apply(initialize_weights)
+right_D.apply(initialize_weights)
+generator_G.apply(initialize_weights)
 
 print('Switched to training mode')
 for epoch in range(opt.num_epochs):
@@ -323,6 +337,8 @@ for epoch in range(opt.num_epochs):
             right_imgs = torch.cat((true_right, fake_right), dim=0)
 
             lbl_est_left = left_D(left_imgs)
+            print(lbl_est_left.shape)
+
             loss_D_left = adversarial_loss(torch.squeeze(lbl_est_left), torch.squeeze(lbls))
 
             optimizer_D_left.zero_grad()
@@ -438,6 +454,8 @@ for epoch in range(opt.num_epochs):
         if call_logger(batch_idx, opt, total_step):
             outputs = {}
             outputs['generated']= torch.cat((fake_left,gen_fake_right), dim=3)
+            outputs['generated_segs'] = gen_fake_seg
+
             log_tbx(writers, "train", batch, outputs, left_disc_weights, right_disc_weights,gen_weights, losses_d, losses_g, total_step)
 
     #IMPLEMENT VALIDATION
@@ -541,6 +559,8 @@ for epoch in range(opt.num_epochs):
     gen_weights= get_weights(generator_G)
     outputs = {}
     outputs['generated']= torch.cat((fake_left,gen_fake_right), dim=3)
+    outputs['generated_segs'] = gen_fake_seg
+
     log_tbx(writers, "train", batch, outputs, left_disc_weights, right_disc_weights,gen_weights, losses_d, losses_g, total_step)
 
     if best_val_loss is None or val_loss < best_val_loss: 

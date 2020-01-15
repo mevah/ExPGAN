@@ -17,9 +17,6 @@ import os
 from tensorboardX import SummaryWriter
 
 
-
-
-
 ######## TRANSFORMS.TOTENSOR
 class CS_Dataset(torchvision.datasets.Cityscapes):
     def __init__(self,  root_folder='/cluster/scratch/oezyurty/cityscapes_data', split='train', mode='fine', target_type='semantic', transform=None, target_transform=None, transforms=None):
@@ -44,6 +41,7 @@ class CS_Dataset(torchvision.datasets.Cityscapes):
         CITYSCAPES_STD = [0.18696375, 0.19017339, 0.18720214]
         inputs = {}
         loaded_img, loaded_sgmn = super(CS_Dataset, self).__getitem__(index)
+
         #print('type: ', type(loaded_img)) #<class 'PIL.Image.Image'>
         #print('Max val: ', np.max(np.asarray(loaded_img))) #255
 
@@ -70,9 +68,11 @@ class CS_Dataset(torchvision.datasets.Cityscapes):
             #print(torch.nn.functional.one_hot(inputs[("segm", iii)].to(torch.int64), 33).shape)
             #print(torch.nn.functional.one_hot(inputs[("segm", iii)].to(torch.int64), 33).permute(0,3,1,2).shape)
             #print(torch.squeeze(torch.nn.functional.one_hot(inputs[("segm", iii)].to(torch.int64), 33).permute(0,3,1,2)).shape)
-            inputs[("segm", iii)] = torch.squeeze(torch.nn.functional.one_hot(inputs[("segm", iii)].to(torch.int64), 33).permute(0,3,1,2)).float()
 
-        inputs[("cropped_segm")] = torch.squeeze(torch.nn.functional.one_hot(inputs[("cropped_segm")].to(torch.int64), 33).permute(0,3,1,2)).float()
+            #change if you need less or more classes
+            inputs[("segm", iii)] = torch.squeeze(torch.nn.functional.one_hot((torch.round(inputs[("segm", iii)]*255/42)).to(torch.int64), 7).permute(0,3,1,2)).float()
+
+        inputs[("cropped_segm")] = torch.squeeze(torch.nn.functional.one_hot((torch.round(inputs[("cropped_segm")]*255/42)).to(torch.int64), 7).permute(0,3,1,2)).float()
 
         return inputs
 
@@ -140,7 +140,8 @@ class UpBlock(nn.Module):
 
 
 class ExPGenerator(nn.Module):
-    def __init__(self, seg_class_num = 33, seg_encoding_num=7, im_size=(256, 512), exp_size=(256,128)):
+    #seg_class_num changed from 33 to 7 
+    def __init__(self, seg_class_num = 7, seg_encoding_num=7, im_size=(256, 512), exp_size=(256,128)):
         super(ExPGenerator, self).__init__()
 
             #original image processing part
@@ -253,7 +254,7 @@ class ExPGenerator(nn.Module):
         
         seg_u1 = self.seg_up1(res_l6)
         seg_u2 = self.seg_up2(seg_u1)
-        seg_u3 = self.seg_up3(seg_u2)
+        seg_u3 = self.seg_up3(seg_u2)   
         seg_u4= self.seg_up4(seg_u3)
         seg_u5= self.seg_up5(seg_u4)
         seg_u6= self.seg_up6(seg_u5)
@@ -297,11 +298,14 @@ class LeftDiscriminator(nn.Module):
             nn.LeakyReLU(0.2, inplace=True),
             nn.Conv2d(64, ch_num, 5, stride=2, padding=0),
             nn.LeakyReLU(0.2, inplace=True),
-            nn.AvgPool2d(3), 
+            #nn.AvgPool2d(3), 
+            #nn.Flatten(),
+            #nn.Linear(38400, 256), #BURAYA INPUT SIZE LAZIMMMMMMMMM
+            #nn.LeakyReLU(0.2, inplace=True),
+            #nn.Linear(256, 1),
+            nn.Conv2d(ch_num,1,5,stride=2, padding=0),
             nn.Flatten(),
-            nn.Linear(38400, 256), #BURAYA INPUT SIZE LAZIMMMMMMMMM
-            nn.LeakyReLU(0.2, inplace=True),
-            nn.Linear(256, 1),
+            nn.Linear( 1232,1),
             nn.Sigmoid()
         )
     def forward(self, img):
@@ -319,49 +323,30 @@ class RightDiscriminator(nn.Module):
         h, w = calculate_hw_conv(h, w, kernel_size=3, stride=1, padding=0, dilation=1)
         vec_len = int(h*w*ch_num)
         self.model = nn.Sequential(
-            nn.Conv2d(3, 32, 7, stride=1, padding=0),
+            nn.Conv2d(3, 32, 7, stride=1, padding=0),   
+            nn.BatchNorm2d(32),
             nn.LeakyReLU(0.2, inplace=True),
             nn.Conv2d(32, 64, 5, stride=2, padding=0),
+            nn.BatchNorm2d(64),
             nn.LeakyReLU(0.2, inplace=True),
             nn.Conv2d(64, ch_num, 5, stride=2, padding=0),
+            nn.BatchNorm2d(ch_num),
             nn.LeakyReLU(0.2, inplace=True),
-            nn.AvgPool2d(3), 
+            #nn.AvgPool2d(3), 
+            #nn.Flatten(),
+            #nn.Linear(38400, 256), #BURAYA INPUT SIZE LAZIMMMMMMMMM
+            #nn.LeakyReLU(0.2, inplace=True),
+            #nn.Linear(256, 1),
+            nn.Conv2d(ch_num,1,5,stride=2, padding=0),
             nn.Flatten(),
-            nn.Linear(38400, 256), #BURAYA INPUT SIZE LAZIMMMMMMMMM
-            nn.LeakyReLU(0.2, inplace=True),
-            nn.Linear(256, 1),
+            nn.Linear(1232,1),
             nn.Sigmoid()
         )
     def forward(self, img):
         validity = self.model(img)
         return validity
 
-class Discriminator(nn.Module):
-    def __init__(self, in_channels=3, scale_factor=1):
-        super(Discriminator, self).__init__()
 
-        def discriminator_block(in_filters, out_filters, normalization=True):
-            """Returns downsampling layers of each discriminator block"""
-            layers = [nn.Conv2d(in_filters, out_filters, 4, stride=2, padding=1)]
-            if normalization:
-                layers.append(nn.InstanceNorm2d(out_filters))
-            layers.append(nn.LeakyReLU(0.2, inplace=True))
-            return layers
-          
-        self.scale_factor = scale_factor
-        
-        self.model = nn.Sequential(
-            *discriminator_block(in_channels, 32, normalization=False),
-            *discriminator_block(32, 64),
-            *discriminator_block(64, 128),
-            *discriminator_block(128, 256),
-            nn.Sigmoid()
-        )
-
-    def forward(self, img_Full):
-        img_input = self.downscale(img_Full)
-        return self.model(img_input)
-  
 def initialize_weights(m):
     classname = m.__class__.__name__
     if classname.find('Conv') != -1:
