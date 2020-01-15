@@ -22,6 +22,9 @@ from gan_model import CS_Dataset
 from gan_model import LeftDiscriminator, RightDiscriminator, ExPGenerator
 from gan_model import initialize_weights
 
+from fcn_model import fcn8s
+import torchvision.models as models
+import scipy.misc as misc
 parser = argparse.ArgumentParser()
 parser.add_argument("--num_epochs", type=int, default=200, help="number of epochs of training")
 parser.add_argument("--mini_D_num_epochs", type=int, default=1, help="number of epochs of training D")
@@ -153,6 +156,7 @@ def img_denorm(img):
     res = torch.clamp(res, 0, 1)
     return(res)
 
+
 colors = [
     [128, 64, 128],
     [244, 35, 232],
@@ -176,7 +180,7 @@ def log_tbx(writers, mode, batch, outputs, left_weights, right_weights, gen_weig
     for l, v in losses_g.items():
         writer.add_scalar("{}".format(l), v, total_step)
 
-    for j in range(min(4, opt.batch_size)):  
+    for j in range(min(6, opt.batch_size)):  
         writer.add_image(
             "input/{}".format(j),
             img_denorm(batch[("img",0)][j]).data, total_step)
@@ -189,14 +193,10 @@ def log_tbx(writers, mode, batch, outputs, left_weights, right_weights, gen_weig
             "generated_normalized/{}".format(j),
             outputs[("generated")][j], total_step)
 
-        print(np.expand_dims((30*torch.argmax(batch[("segm",0)][j], dim=0)).numpy(),axis=0).shape)
-        print(np.expand_dims((30*torch.argmax(batch[("segm",0)][j], dim=0)).numpy(),axis=0))
         writer.add_image(
             "seg/{}".format(j),
             np.expand_dims((30*torch.argmax(batch[("segm",0)][j], dim=0)).numpy(),axis=0).astype(np.uint8), total_step)
 
-        print(np.expand_dims((30*torch.argmax(outputs[("generated_segs")][j], dim=0)).cpu().data,axis=0).shape)
-        print(np.expand_dims((30*torch.argmax(outputs[("generated_segs")][j], dim=0)).cpu().data,axis=0))
         writer.add_image(
             "seg_generated/{}".format(j),
             np.expand_dims((30*torch.argmax(outputs[("generated_segs")][j], dim=0)).cpu().data,axis=0).astype(np.uint8), total_step)
@@ -252,7 +252,18 @@ if cuda:
     right_D.cuda()
     generator_G.cuda()
     
-    
+ # Setup Segmentation Model
+model_dict = {"arch": "fcn8s"}            
+seg_model = fcn8s(n_classes=7)
+vgg16 = models.vgg16(pretrained=True)
+seg_model.init_vgg16_params(vgg16)     
+state = (torch.load("fcn8s_cityscapes_best_model.pkl")["model_state"])
+seg_model = torch.nn.DataParallel(seg_model, device_ids=range(torch.cuda.device_count()))
+seg_model.load_state_dict(state)
+seg_model.eval()
+seg_model.cuda()
+
+
 optimizer_G = torch.optim.Adam(generator_G.parameters(), lr=opt.lr_gen, betas=(opt.b1_gen, opt.b2_gen))
 optimizer_D_left = torch.optim.Adam(left_D.parameters(), lr=opt.lr_disc, betas=(opt.b1_disc, opt.b2_disc))
 optimizer_D_right = torch.optim.Adam(right_D.parameters(), lr=opt.lr_disc, betas=(opt.b1_disc, opt.b2_disc))
@@ -274,10 +285,12 @@ mask_row = np.zeros((1,512))
 def sigmoid(start=0,end=128, c1=0.1,c2=0):
     x = np.arange(start,end)
     return (1 / (1 + np.exp(-1 * c1 * (x-c2))))    
+
 mask_row[0,0:128] = sigmoid(0,128,c2=64)
 mask_row[0,128:256] = 1-sigmoid(128,256,c2=192)
 mask_row[0,256:384] = sigmoid(256,384,c2=320)
 mask_row[0,384:512] =  1-sigmoid(384,512,c2=448)
+
 mask_tensor = torch.from_numpy(np.squeeze(mask_row)).float()
 mask_tensor_rec_left = torch.from_numpy(np.squeeze(mask_row[:,0:128])).float()
 mask_tensor_rec_right = torch.from_numpy(np.squeeze(mask_row[:,384:512])).float()
@@ -301,9 +314,9 @@ if torch.cuda.device_count() > 1:
     generator_G = nn.DataParallel(generator_G)
 
 #try initializing weights
-#left_D.apply(initialize_weights)
-#right_D.apply(initialize_weights)
-#generator_G.apply(initialize_weights)
+left_D.apply(initialize_weights)
+right_D.apply(initialize_weights)
+generator_G.apply(initialize_weights)
 
 print('Switched to training mode')
 for epoch in range(opt.num_epochs):
@@ -360,6 +373,8 @@ for epoch in range(opt.num_epochs):
             right_imgs = torch.cat((true_right, fake_right), dim=0)
 
             lbl_est_left = left_D(left_imgs)
+            print(lbl_est_left.shape)
+
             loss_D_left = adversarial_loss(torch.squeeze(lbl_est_left), torch.squeeze(lbls))
 
             optimizer_D_left.zero_grad()
@@ -410,7 +425,19 @@ for epoch in range(opt.num_epochs):
             #GET DISCRIMINATOR RESULTS
             lbl_est_left = left_D(fake_left)
             lbl_est_right = right_D(fake_right)
-
+            
+            #generated output
+            gen_output= torch.cat((fake_left,gen_fake_right), dim=3)
+            print("gen output shape:", gen_output.shape)
+            #orig_size = img.shape[:-1]
+            img= F.interpolate(gen_output, (512,1024))      
+            print("img shape:", img.shape)
+            outputs = seg_model(img)
+            pred = np.squeeze(outputs.data.max(1)[1].cpu().numpy(), axis=0)  
+            print("Classes found: ", np.unique(pred))
+            print("pred shape: ",pred.shape)
+            gen_seg_loss= nn.CrossEntropyLoss(reduction='none')(torch.squeeze(pred), torch.squeeze(masked_target))
+ 
 
             optimizer_G.zero_grad()
             #print(torch.squeeze(gen_fake_seg).shape)
@@ -425,8 +452,9 @@ for epoch in range(opt.num_epochs):
             #print(torch.squeeze(gen_fake_seg).shape)
             #print(torch.squeeze(masked_target).shape)
 
-            loss_seg = nn.CrossEntropyLoss(reduction='none')(torch.squeeze(gen_fake_seg), torch.squeeze(masked_target))
-            loss_seg = weight_segmentation*loss_seg # Ensure that weights are scaled appropriately
+            #loss_seg = nn.CrossEntropyLoss(reduction='none')(torch.squeeze(gen_fake_seg), torch.squeeze(masked_target))
+            #loss_seg = weight_segmentation*loss_seg # Ensure that weights are scaled appropriately
+            loss_seg= gen_seg_loss
             loss_seg = torch.mean(loss_seg) # Sums the loss per image
 
             #loss_seg = F.cross_entropy(torch.squeeze(gen_fake_seg), torch.squeeze(masked_target))
@@ -466,6 +494,8 @@ for epoch in range(opt.num_epochs):
             loss = opt.lambda_seg * loss_seg + opt.lambda_disc * loss_D_left_g + opt.lambda_disc * loss_D_right_g + opt.lambda_recon*loss_recon_left + opt.lambda_recon*loss_recon_right
             loss.backward()
             optimizer_G.step() 
+
+
         losses_g = write_losses_g(loss, loss_seg,loss_D_left_g,loss_D_right_g,loss_recon_left,loss_recon_right)
         total_step += 1
         left_disc_weights= get_weights(left_D)
@@ -581,7 +611,7 @@ for epoch in range(opt.num_epochs):
     outputs['generated']= torch.cat((fake_left,gen_fake_right), dim=3)
     outputs['generated_segs'] = gen_fake_seg
 
-    log_tbx(writers, "train", batch, outputs, left_disc_weights, right_disc_weights,gen_weights, losses_d, losses_g, total_step)
+    log_tbx(writers, "val", batch, outputs, left_disc_weights, right_disc_weights,gen_weights, losses_d, losses_g, total_step)
 
     if best_val_loss is None or val_loss < best_val_loss: 
         best_val_loss = val_loss
