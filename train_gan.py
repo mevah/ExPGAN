@@ -44,14 +44,17 @@ parser.add_argument("--img_size", type=int, default=28, help="size of each image
 parser.add_argument("--n_critic", type=int, default=5, help="number of training steps for discriminator per iter")
 parser.add_argument("--clip_value", type=float, default=0.01, help="lower and upper clip value for disc. weights")
 parser.add_argument("--sample_interval", type=int, default=400, help="interval betwen image samples")
-parser.add_argument("--dataset_folder", type=str, default='/cluster/scratch/himeva/DL_Project/data_pred', help="dataset folder, directory which includes left8bit and gtFine folders")
-parser.add_argument("--model_save", type=str, default='/cluster/scratch/himeva/DL_Project/ExPGAN/', help='specify the directory to save models')
+
+#parser.add_argument("--dataset_folder", type=str, default='/cluster/scratch/himeva/DL_Project/data_pred', help="dataset folder, directory which includes left8bit and gtFine folders")
+#parser.add_argument("--model_save", type=str, default='/cluster/scratch/himeva/DL_Project/ExPGAN/', help='specify the directory to save models')
+parser.add_argument("--dataset_folder", type=str, default='/cluster/scratch/takmaza/DL/segs', help="dataset folder, directory which includes left8bit and gtFine folders")
+parser.add_argument("--model_save", type=str, default='/cluster/scratch/takmaza/DL/', help='specify the directory to save models')
+
 parser.add_argument("--log_frequency", type=int, default=20, help="log frequency in terms of steps")
 parser.add_argument("--logfile_name", type=str, default='logs.txt')
 parser.add_argument("--model_load", type=str, default="")
 
 opt = parser.parse_args()       
-print(opt)
 
 def get_model_name(opt):
     writer_log_dir = os.path.join(opt.model_save, 'models')
@@ -154,6 +157,18 @@ def img_denorm(img):
     return(res)
 
 
+colors = [
+    [128, 64, 128],
+    [244, 35, 232],
+    [70, 70, 70],
+    [102, 102, 156],
+    [190, 153, 153],
+    [153, 153, 153],
+    [250, 170, 30],
+]
+
+label_colours = dict(zip(range(7), colors))
+        
 def log_tbx(writers, mode, batch, outputs, left_weights, right_weights, gen_weights,losses_d, losses_g, total_step):
     """
     Write an event to the tensorboard events file
@@ -178,12 +193,10 @@ def log_tbx(writers, mode, batch, outputs, left_weights, right_weights, gen_weig
             "generated_normalized/{}".format(j),
             outputs[("generated")][j], total_step)
 
-        
         writer.add_image(
             "seg/{}".format(j),
             np.expand_dims((30*torch.argmax(batch[("segm",0)][j], dim=0)).numpy(),axis=0).astype(np.uint8), total_step)
 
-        
         writer.add_image(
             "seg_generated/{}".format(j),
             np.expand_dims((30*torch.argmax(outputs[("generated_segs")][j], dim=0)).cpu().data,axis=0).astype(np.uint8), total_step)
@@ -330,6 +343,15 @@ for epoch in range(opt.num_epochs):
             #print('epoch_D: ', epoch_D)
             source_img = batch["cropped"]
             source_segm = batch["cropped_segm"]
+            #print('source_segm')
+            #print(torch.max(source_segm))
+            #print(source_segm.shape)
+            #print(np.argmax(source_segm.data,axis=1))
+            #print(np.argmax(source_segm.data,axis=1).shape)
+            #print('LOLAPOZA')
+            #print(np.argmax(source_segm[0].data,axis=0))
+            #print(np.argmax(source_segm[0].cpu().numpy(),axis=0).max())
+
             true_im = add_noise(batch["img",0]) #Before cropping original image  noise needs to be added 
             source_img = source_img.cuda()
             source_segm = source_segm.cuda()
@@ -484,7 +506,6 @@ for epoch in range(opt.num_epochs):
             outputs = {}
             outputs['generated']= torch.cat((fake_left,gen_fake_right), dim=3)
             outputs['generated_segs'] = gen_fake_seg
-
             log_tbx(writers, "train", batch, outputs, left_disc_weights, right_disc_weights,gen_weights, losses_d, losses_g, total_step)
 
     #IMPLEMENT VALIDATION
@@ -590,7 +611,7 @@ for epoch in range(opt.num_epochs):
     outputs['generated']= torch.cat((fake_left,gen_fake_right), dim=3)
     outputs['generated_segs'] = gen_fake_seg
 
-    log_tbx(writers, "train", batch, outputs, left_disc_weights, right_disc_weights,gen_weights, losses_d, losses_g, total_step)
+    log_tbx(writers, "val", batch, outputs, left_disc_weights, right_disc_weights,gen_weights, losses_d, losses_g, total_step)
 
     if best_val_loss is None or val_loss < best_val_loss: 
         best_val_loss = val_loss

@@ -45,6 +45,15 @@ class CS_Dataset(torchvision.datasets.Cityscapes):
         #print('type: ', type(loaded_img)) #<class 'PIL.Image.Image'>
         #print('Max val: ', np.max(np.asarray(loaded_img))) #255
 
+
+        #print('#'*40)
+        #print('SEGM IN LOADER')
+        #temp_seg = np.asarray(loaded_sgmn)
+        #print(temp_seg.shape)
+        #print('max: ', temp_seg.max())
+        #print(np.argmax(temp_seg,axis=0))
+
+
         for ii in range(self.num_scales):
             inputs[("img", ii)] = self.resize[ii](loaded_img)
             inputs[("segm", ii)] = self.resize[ii](loaded_sgmn)
@@ -69,7 +78,6 @@ class CS_Dataset(torchvision.datasets.Cityscapes):
             #print(torch.nn.functional.one_hot(inputs[("segm", iii)].to(torch.int64), 33).permute(0,3,1,2).shape)
             #print(torch.squeeze(torch.nn.functional.one_hot(inputs[("segm", iii)].to(torch.int64), 33).permute(0,3,1,2)).shape)
 
-            #change if you need less or more classes
             inputs[("segm", iii)] = torch.squeeze(torch.nn.functional.one_hot((torch.round(inputs[("segm", iii)]*255/42)).to(torch.int64), 7).permute(0,3,1,2)).float()
 
         inputs[("cropped_segm")] = torch.squeeze(torch.nn.functional.one_hot((torch.round(inputs[("cropped_segm")]*255/42)).to(torch.int64), 7).permute(0,3,1,2)).float()
@@ -140,7 +148,6 @@ class UpBlock(nn.Module):
 
 
 class ExPGenerator(nn.Module):
-    #seg_class_num changed from 33 to 7 
     def __init__(self, seg_class_num = 7, seg_encoding_num=7, im_size=(256, 512), exp_size=(256,128)):
         super(ExPGenerator, self).__init__()
 
