@@ -257,7 +257,7 @@ model_dict = {"arch": "fcn8s"}
 seg_model = fcn8s(n_classes=7)
 vgg16 = models.vgg16(pretrained=True)
 seg_model.init_vgg16_params(vgg16)     
-state = (torch.load("fcn8s_cityscapes_best_model.pkl")["model_state"])
+state = (torch.load("/cluster/scratch/takmaza/DL/fcn8s_cityscapes_best_model.pkl")["model_state"])
 seg_model = torch.nn.DataParallel(seg_model, device_ids=range(torch.cuda.device_count()))
 seg_model.load_state_dict(state)
 seg_model.eval()
