@@ -351,7 +351,6 @@ for epoch in range(opt.num_epochs):
             right_imgs = torch.cat((true_right, fake_right), dim=0)
 
             lbl_est_left = left_D(left_imgs)
-            print(lbl_est_left.shape)
 
             loss_D_left = adversarial_loss(torch.squeeze(lbl_est_left), torch.squeeze(lbls))
 
@@ -406,15 +405,21 @@ for epoch in range(opt.num_epochs):
             
             #generated output
             gen_output= torch.cat((fake_left,gen_fake_right), dim=3)
-            print("gen output shape:", gen_output.shape)
+            #print("gen output shape:", gen_output.shape)
             #orig_size = img.shape[:-1]
-            img= F.interpolate(gen_output, (512,1024))      
-            print("img shape:", img.shape)
-            outputs = seg_model(img)
-            pred = np.squeeze(outputs.data.max(1)[1].cpu().numpy(), axis=0)  
-            print("Classes found: ", np.unique(pred))
-            print("pred shape: ",pred.shape)
-            gen_seg_loss= nn.CrossEntropyLoss(reduction='none')(torch.squeeze(pred), torch.squeeze(masked_target))
+            img= F.interpolate(gen_output, (1024,2048))      
+            #print("img shape:", img.shape)
+            with torch.no_grad():
+              outputs = seg_model(img)
+            pred = outputs.data.max(1)[1].cpu().numpy()
+            preds= pred[:, ::4, ::4]
+            preds= torch.squeeze(torch.nn.functional.one_hot(torch.from_numpy(preds).to(torch.int64)).permute(0,3,1,2)).cuda() 
+            target_labels= torch.argmax(masked_target,dim=1)
+
+            #print("Classes found: ", np.unique(pred))
+            #print("pred shape: ",pred.shape)
+            gen_seg_loss= nn.CrossEntropyLoss(reduction='none')(torch.squeeze(preds.float()), torch.squeeze(target_labels))
+ 
  
 
             optimizer_G.zero_grad()
@@ -590,7 +595,7 @@ for epoch in range(opt.num_epochs):
     outputs['generated']= torch.cat((fake_left,gen_fake_right), dim=3)
     outputs['generated_segs'] = gen_fake_seg
 
-    log_tbx(writers, "train", batch, outputs, left_disc_weights, right_disc_weights,gen_weights, losses_d, losses_g, total_step)
+    log_tbx(writers, "val", batch, outputs, left_disc_weights, right_disc_weights,gen_weights, losses_d, losses_g, total_step)
 
     if best_val_loss is None or val_loss < best_val_loss: 
         best_val_loss = val_loss
