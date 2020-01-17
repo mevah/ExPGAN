@@ -603,5 +603,3 @@ for epoch in range(opt.num_epochs):
         #save_model(left_D, right_D, generator_G)
 
     
-
-# log
