@@ -1,3 +1,4 @@
+  
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -314,6 +315,130 @@ if torch.cuda.device_count() > 1:
 #generator_G.apply(initialize_weights)
 
 print('Switched to training mode')
+
+
+print("#######################################   PHASE 1    #########################################")
+print('Phase 1 - Pre-training the generator')
+for epoch in range(4):
+    print('Phase 1 - Epoch ',epoch)
+    generator_G.train()
+    for batch_idx, batch in enumerate(train_loader):
+        weight_segmentation = mask_tensor.repeat(batch['cropped'].size(0), 256, 1)
+        weight_rec_left = mask_tensor_rec_left.repeat(batch['cropped'].size(0), 3, 256, 1)
+        weight_rec_right = mask_tensor_rec_right.repeat(batch['cropped'].size(0), 3, 256, 1)
+
+        if cuda: 
+            weight_segmentation = weight_segmentation.cuda()
+            weight_rec_left = weight_rec_left.cuda()
+            weight_rec_right = weight_rec_right.cuda()
+
+    
+        #print('epoch_G: ', epoch_G)
+        source_img = batch["cropped"]
+        source_segm = batch["cropped_segm"]
+        true_im = batch["img",0]
+        true_segm = batch["segm",0]
+        source_img = source_img.cuda()
+        source_segm = source_segm.cuda()
+        true_im = true_im.cuda()
+        true_segm = true_segm.cuda()
+        #print(true_segm.shape)
+        masked_target = mask_segm(true_segm, source_segm).to(torch.int64)
+        orj_left = true_im[:,:,:, 0:128]
+        orj_right = true_im[:,:,:, -128:]
+
+        gen_fake_left, gen_fake_right, gen_fake_seg = generator_G(source_img, source_segm)
+        optimizer_G.zero_grad()
+        _, masked_target = masked_target.max(dim=1)
+
+        loss_seg = nn.CrossEntropyLoss(reduction='none')(torch.squeeze(gen_fake_seg), torch.squeeze(masked_target))
+        loss_seg = weight_segmentation*loss_seg # Ensure that weights are scaled appropriately
+        loss_seg = torch.mean(loss_seg) # Sums the loss per image
+
+        loss_recon_left = nn.MSELoss(reduction='none')(gen_fake_left, orj_left)
+        loss_recon_left = weight_rec_left*loss_recon_left # Ensure that weights are scaled appropriately
+        loss_recon_left = torch.mean(loss_recon_left) # Sums the loss per image
+        loss_recon_right = nn.MSELoss(reduction='none')(gen_fake_right, orj_right)
+        loss_recon_right = weight_rec_right*loss_recon_right # Ensure that weights are scaled appropriately
+        loss_recon_right = torch.mean(loss_recon_right) # Sums the loss per image
+
+        loss = opt.lambda_seg * loss_seg + opt.lambda_recon*loss_recon_left + opt.lambda_recon*loss_recon_right
+        loss.backward()
+        optimizer_G.step() 
+
+    torch.save({
+        "left_disc": left_D.state_dict(),
+        "right_disc": right_D.state_dict(),
+        "generator": generator_G.state_dict()
+        },
+        os.path.join(model_save_dir, "phase1.pt"))
+
+
+print("#######################################   PHASE 2    #########################################")
+print('Phase 2 - Pre-training the discriminator')
+total_step = 0
+for epoch in range(opt.num_epochs):
+    print('Phase 2 - Epoch ',epoch)
+    left_D.train()
+    right_D.train()
+    for batch_idx, batch in enumerate(train_loader):
+        weight_segmentation = mask_tensor.repeat(batch['cropped'].size(0), 256, 1)
+        weight_rec_left = mask_tensor_rec_left.repeat(batch['cropped'].size(0), 3, 256, 1)
+        weight_rec_right = mask_tensor_rec_right.repeat(batch['cropped'].size(0), 3, 256, 1)
+
+        if cuda: 
+            weight_segmentation = weight_segmentation.cuda()
+            weight_rec_left = weight_rec_left.cuda()
+            weight_rec_right = weight_rec_right.cuda()
+
+
+        source_img = batch["cropped"]
+        source_segm = batch["cropped_segm"]
+
+        true_im = add_noise(batch["img",0]) #Before cropping original image  noise needs to be added 
+        source_img = source_img.cuda()
+        source_segm = source_segm.cuda()
+        true_im = true_im.cuda()
+        gen_fake_left, gen_fake_right, gen_fake_seg = generator_G(source_img, source_segm)
+
+        fake_left = torch.cat((gen_fake_left.detach(), source_img), dim=3)
+        fake_right= torch.cat((source_img, gen_fake_right.detach()), dim=3)
+        true_left = true_im[:, : , :, 0:exp_img_shape[-1]]
+        true_right = true_im[:, :, : , -exp_img_shape[-1]:]
+
+        true_lbl = Variable(Tensor(source_img.size(0), 1).fill_(1), requires_grad=False)
+        fake_lbl = Variable(Tensor(source_img.size(0), 1).fill_(0), requires_grad=False)
+        true_lbl = true_lbl.cuda()
+        fake_lbl = fake_lbl.cuda()
+
+        lbls = torch.squeeze(torch.cat((true_lbl, fake_lbl), dim=0))
+        left_imgs = torch.cat((true_left, fake_left), dim=0)
+        right_imgs = torch.cat((true_right, fake_right), dim=0)
+
+        lbl_est_left = left_D(left_imgs)
+        loss_D_left = adversarial_loss(torch.squeeze(lbl_est_left), torch.squeeze(lbls))
+
+        optimizer_D_left.zero_grad()
+        loss_D_left.backward()
+        optimizer_D_left.step()
+
+        lbl_est_right = right_D(right_imgs)
+        loss_D_right =adversarial_loss(torch.squeeze(lbl_est_right), torch.squeeze(lbls))
+
+        optimizer_D_right.zero_grad()
+        loss_D_right.backward()
+        optimizer_D_right.step()
+    torch.save({
+        "left_disc": left_D.state_dict(),
+        "right_disc": right_D.state_dict(),
+        "generator": generator_G.state_dict()
+        },
+        os.path.join(model_save_dir, "phase1.pt"))
+
+
+print("#######################################   PHASE 3    #########################################")
+print('Phase 3 - Adversarial Training')
+total_step = 0
 for epoch in range(opt.num_epochs):
     print('#'*30)
     print('Epoch:', epoch)
@@ -605,3 +730,5 @@ for epoch in range(opt.num_epochs):
     
 
 # log
+
+
