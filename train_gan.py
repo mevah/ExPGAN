@@ -1,3 +1,4 @@
+  
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -27,7 +28,7 @@ parser.add_argument("--mini_D_num_epochs", type=int, default=1, help="number of 
 parser.add_argument("--mini_G_num_epochs", type=int, default=1, help="number of epochs of training G")
 parser.add_argument("--batch_size", type=int, default=8, help="size of the batches")
 parser.add_argument("--lr_gen", type=float, default=0.0002, help="adam: learning rate for the generator")
-parser.add_argument("--lr_disc", type=float, default=0.002, help="adam: learning rate for the discriminator")
+parser.add_argument("--lr_disc", type=float, default=0.0001, help="adam: learning rate for the discriminator")
 parser.add_argument("--lambda_seg", type=float, default=1.0, help="loss scale term for segmentation loss")
 parser.add_argument("--lambda_disc", type=float, default=1.0, help="loss scale term for discriminator")
 parser.add_argument("--lambda_recon", type=float, default=1.0, help="loss scale term for reconstruction")
@@ -40,14 +41,17 @@ parser.add_argument("--img_size", type=int, default=28, help="size of each image
 parser.add_argument("--n_critic", type=int, default=5, help="number of training steps for discriminator per iter")
 parser.add_argument("--clip_value", type=float, default=0.01, help="lower and upper clip value for disc. weights")
 parser.add_argument("--sample_interval", type=int, default=400, help="interval betwen image samples")
-parser.add_argument("--dataset_folder", type=str, default='/cluster/scratch/himeva/DL_Project/data_pred', help="dataset folder, directory which includes left8bit and gtFine folders")
-parser.add_argument("--model_save", type=str, default='/cluster/scratch/himeva/DL_Project/ExPGAN/', help='specify the directory to save models')
+
+#parser.add_argument("--dataset_folder", type=str, default='/cluster/scratch/himeva/DL_Project/data_pred', help="dataset folder, directory which includes left8bit and gtFine folders")
+#parser.add_argument("--model_save", type=str, default='/cluster/scratch/himeva/DL_Project/ExPGAN/', help='specify the directory to save models')
+parser.add_argument("--dataset_folder", type=str, default='/cluster/scratch/takmaza/DL/segs', help="dataset folder, directory which includes left8bit and gtFine folders")
+parser.add_argument("--model_save", type=str, default='/cluster/scratch/takmaza/DL/', help='specify the directory to save models')
+
 parser.add_argument("--log_frequency", type=int, default=20, help="log frequency in terms of steps")
 parser.add_argument("--logfile_name", type=str, default='logs.txt')
 parser.add_argument("--model_load", type=str, default="")
 
 opt = parser.parse_args()       
-print(opt)
 
 def get_model_name(opt):
     writer_log_dir = os.path.join(opt.model_save, 'models')
@@ -110,15 +114,24 @@ def call_logger(batch_idx, opt, total_step, mode="train"):
     early_phase = batch_idx % opt.log_frequency == 0 and total_step < 2000
     late_phase = total_step % 2000 == 0
     return (early_phase or late_phase)
-       
-def save_model(left_D, right_D, generator_G):
+
+def save_model(left_D, right_D, generator_G,epoch=0, best_model=False):
     logging("Saving models to {} ".format(model_save_dir))
-    torch.save({
-        "left_disc": left_D.state_dict(),
-        "right_disc": right_D.state_dict(),
-        "generator": generator_G.state_dict()
-        },
-        os.path.join(model_save_dir, "model.pt"))
+    if(best_model):
+        torch.save({
+            "left_disc": left_D.state_dict(),
+            "right_disc": right_D.state_dict(),
+            "generator": generator_G.state_dict()
+            },
+            os.path.join(model_save_dir, "best_model.pt"))
+    else:
+        torch.save({
+            "left_disc": left_D.state_dict(),
+            "right_disc": right_D.state_dict(),
+            "generator": generator_G.state_dict()
+            },
+            os.path.join(model_save_dir, "model"+str(epoch)+".pt"))
+
     
 def load_model(exp_img_shape):
     logging('Loading models from {} '.format(opt.model_load))
@@ -149,7 +162,18 @@ def img_denorm(img):
     res = torch.clamp(res, 0, 1)
     return(res)
 
+colors = [
+    [128, 64, 128],
+    [244, 35, 232],
+    [70, 70, 70],
+    [102, 102, 156],
+    [190, 153, 153],
+    [153, 153, 153],
+    [250, 170, 30],
+]
 
+label_colours = dict(zip(range(7), colors))
+        
 def log_tbx(writers, mode, batch, outputs, left_weights, right_weights, gen_weights,losses_d, losses_g, total_step):
     """
     Write an event to the tensorboard events file
@@ -161,7 +185,7 @@ def log_tbx(writers, mode, batch, outputs, left_weights, right_weights, gen_weig
     for l, v in losses_g.items():
         writer.add_scalar("{}".format(l), v, total_step)
 
-    for j in range(min(6, opt.batch_size)):  
+    for j in range(min(4, opt.batch_size)):  
         writer.add_image(
             "input/{}".format(j),
             img_denorm(batch[("img",0)][j]).data, total_step)
@@ -174,12 +198,14 @@ def log_tbx(writers, mode, batch, outputs, left_weights, right_weights, gen_weig
             "generated_normalized/{}".format(j),
             outputs[("generated")][j], total_step)
 
-        
+        #print(np.expand_dims((30*torch.argmax(batch[("segm",0)][j], dim=0)).numpy(),axis=0).shape)
+        #print(np.expand_dims((30*torch.argmax(batch[("segm",0)][j], dim=0)).numpy(),axis=0))
         writer.add_image(
             "seg/{}".format(j),
             np.expand_dims((30*torch.argmax(batch[("segm",0)][j], dim=0)).numpy(),axis=0).astype(np.uint8), total_step)
 
-        
+        #print(np.expand_dims((30*torch.argmax(outputs[("generated_segs")][j], dim=0)).cpu().data,axis=0).shape)
+        #print(np.expand_dims((30*torch.argmax(outputs[("generated_segs")][j], dim=0)).cpu().data,axis=0))
         writer.add_image(
             "seg_generated/{}".format(j),
             np.expand_dims((30*torch.argmax(outputs[("generated_segs")][j], dim=0)).cpu().data,axis=0).astype(np.uint8), total_step)
@@ -257,12 +283,10 @@ mask_row = np.zeros((1,512))
 def sigmoid(start=0,end=128, c1=0.1,c2=0):
     x = np.arange(start,end)
     return (1 / (1 + np.exp(-1 * c1 * (x-c2))))    
-
 mask_row[0,0:128] = sigmoid(0,128,c2=64)
 mask_row[0,128:256] = 1-sigmoid(128,256,c2=192)
 mask_row[0,256:384] = sigmoid(256,384,c2=320)
 mask_row[0,384:512] =  1-sigmoid(384,512,c2=448)
-
 mask_tensor = torch.from_numpy(np.squeeze(mask_row)).float()
 mask_tensor_rec_left = torch.from_numpy(np.squeeze(mask_row[:,0:128])).float()
 mask_tensor_rec_right = torch.from_numpy(np.squeeze(mask_row[:,384:512])).float()
@@ -286,9 +310,9 @@ if torch.cuda.device_count() > 1:
     generator_G = nn.DataParallel(generator_G)
 
 #try initializing weights
-left_D.apply(initialize_weights)
-right_D.apply(initialize_weights)
-generator_G.apply(initialize_weights)
+#left_D.apply(initialize_weights)
+#right_D.apply(initialize_weights)
+#generator_G.apply(initialize_weights)
 
 print('Switched to training mode')
 for epoch in range(opt.num_epochs):
@@ -315,6 +339,15 @@ for epoch in range(opt.num_epochs):
             #print('epoch_D: ', epoch_D)
             source_img = batch["cropped"]
             source_segm = batch["cropped_segm"]
+            #print('source_segm')
+            #print(torch.max(source_segm))
+            #print(source_segm.shape)
+            #print(np.argmax(source_segm.data,axis=1))
+            #print(np.argmax(source_segm.data,axis=1).shape)
+            #print('LOLAPOZA')
+            #print(np.argmax(source_segm[0].data,axis=0))
+            #print(np.argmax(source_segm[0].cpu().numpy(),axis=0).max())
+
             true_im = add_noise(batch["img",0]) #Before cropping original image  noise needs to be added 
             source_img = source_img.cuda()
             source_segm = source_segm.cuda()
@@ -336,8 +369,6 @@ for epoch in range(opt.num_epochs):
             right_imgs = torch.cat((true_right, fake_right), dim=0)
 
             lbl_est_left = left_D(left_imgs)
-            print(lbl_est_left.shape)
-
             loss_D_left = adversarial_loss(torch.squeeze(lbl_est_left), torch.squeeze(lbls))
 
             optimizer_D_left.zero_grad()
@@ -454,7 +485,6 @@ for epoch in range(opt.num_epochs):
             outputs = {}
             outputs['generated']= torch.cat((fake_left,gen_fake_right), dim=3)
             outputs['generated_segs'] = gen_fake_seg
-
             log_tbx(writers, "train", batch, outputs, left_disc_weights, right_disc_weights,gen_weights, losses_d, losses_g, total_step)
 
     #IMPLEMENT VALIDATION
@@ -560,13 +590,21 @@ for epoch in range(opt.num_epochs):
     outputs['generated']= torch.cat((fake_left,gen_fake_right), dim=3)
     outputs['generated_segs'] = gen_fake_seg
 
-    log_tbx(writers, "train", batch, outputs, left_disc_weights, right_disc_weights,gen_weights, losses_d, losses_g, total_step)
+    log_tbx(writers, "val", batch, outputs, left_disc_weights, right_disc_weights,gen_weights, losses_d, losses_g, total_step)
+
+    if epoch % 5 == 0 or val_loss < best_val_loss:
+        if epoch % 5 == 0:
+            save_model(left_D, right_D, generator_G, epoch, best_model=False)
+        else:
+            save_model(left_D, right_D, generator_G, epoch, best_model=True)
+
 
     if best_val_loss is None or val_loss < best_val_loss: 
         best_val_loss = val_loss
         #save_model(left_D, right_D, generator_G)
 
-    if epoch % 5 == 0:
-        save_model(left_D, right_D, generator_G)
+    
 
 # log
+
+
