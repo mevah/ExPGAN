@@ -592,10 +592,10 @@ for epoch in range(opt.num_epochs):
     log_tbx(writers, "val", batch, outputs, left_disc_weights, right_disc_weights,gen_weights, losses_d, losses_g, total_step)
 
     if epoch % 5 == 0 or val_loss < best_val_loss:
-        if epoch % 5 == 0:
-            save_model(left_D, right_D, generator_G, epoch, best_model=False)
-        else:
+        if val_loss < best_val_loss:
             save_model(left_D, right_D, generator_G, epoch, best_model=True)
+        else:
+            save_model(left_D, right_D, generator_G, epoch, best_model=False)
 
 
     if best_val_loss is None or val_loss < best_val_loss: 
