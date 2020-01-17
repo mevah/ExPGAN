@@ -103,3 +103,180 @@ The output (if any) follows:
     left_D.cuda()
          ^
 IndentationError: expected an indented block
+Sender: LSF System <lsfadmin@lo-s4-072>
+Subject: Job 3852633: <python train_gan_3phase.py --lr_gen=0.0003 --lr_disc=0.0001 --mini_D_num_epochs=2 --mini_G_num_epochs=1 --lambda_seg=0.2> in cluster <leonhard> Exited
+
+Job <python train_gan_3phase.py --lr_gen=0.0003 --lr_disc=0.0001 --mini_D_num_epochs=2 --mini_G_num_epochs=1 --lambda_seg=0.2> was submitted from host <lo-login-01> by user <takmaza> in cluster <leonhard> at Fri Jan 17 11:41:26 2020
+Job was executed on host(s) <8*lo-s4-072>, in queue <gpu.4h>, as user <takmaza> in cluster <leonhard> at Fri Jan 17 11:41:42 2020
+</cluster/home/takmaza> was used as the home directory.
+</cluster/home/takmaza/final_dl/ExPGAN> was used as the working directory.
+Started at Fri Jan 17 11:41:42 2020
+Terminated at Fri Jan 17 12:12:57 2020
+Results reported at Fri Jan 17 12:12:57 2020
+
+Your job looked like:
+
+------------------------------------------------------------
+# LSBATCH: User input
+python train_gan_3phase.py --lr_gen=0.0003 --lr_disc=0.0001 --mini_D_num_epochs=2 --mini_G_num_epochs=1 --lambda_seg=0.2
+------------------------------------------------------------
+
+TERM_OWNER: job killed by owner.
+Exited with exit code 1.
+
+Resource usage summary:
+
+    CPU time :                                   1966.57 sec.
+    Max Memory :                                 25285 MB
+    Average Memory :                             18979.16 MB
+    Total Requested Memory :                     245760.00 MB
+    Delta Memory :                               220475.00 MB
+    Max Swap :                                   -
+    Max Processes :                              4
+    Max Threads :                                18
+    Run time :                                   1899 sec.
+    Turnaround time :                            1891 sec.
+
+The output (if any) follows:
+
+##################################################
+MODEL DIRECTORY:  /cluster/scratch/takmaza/DL/models/2020-01-17-114145
+Namespace(b1_disc=0.5, b1_gen=0.5, b2_disc=0.999, b2_gen=0.999, batch_size=8, clip_value=0.01, dataset_folder='/cluster/scratch/takmaza/DL/segs', img_size=28, lambda_disc=1.0, lambda_recon=1.0, lambda_seg=0.2, log_frequency=20, logfile_name='logs.txt', lr_disc=0.0001, lr_gen=0.0003, mini_D_num_epochs=2, mini_G_num_epochs=1, model_load='', model_save='/cluster/scratch/takmaza/DL/', n_cpu=8, n_critic=5, num_epochs=200, sample_interval=400)
+cuda status:  True
+Switched to training mode
+#######################################   PHASE 1    #########################################
+Phase 1 - Pre-training the generator
+Phase 1 - Epoch  0
+Phase 1 - Epoch  1
+/cluster/home/takmaza/.virtualenvs/dsc-env/lib/python3.7/site-packages/torch/nn/functional.py:2494: UserWarning: Default upsampling behavior when mode=bilinear is changed to align_corners=False since 0.4.0. Please specify align_corners=True if the old behavior is desired. See the documentation of nn.Upsample for details.
+  "See the documentation of nn.Upsample for details.".format(mode))
+Phase 1 - Epoch  2
+Traceback (most recent call last):
+  File "train_gan_3phase.py", line 375, in <module>
+    optimizer_G.step() 
+  File "/cluster/home/takmaza/.virtualenvs/dsc-env/lib/python3.7/site-packages/torch/optim/adam.py", line 95, in step
+    exp_avg.mul_(beta1).add_(1 - beta1, grad)
+KeyboardInterrupt
+Sender: LSF System <lsfadmin@lo-s4-084>
+Subject: Job 3852395: <python train_gan_3phase.py --lr_gen=0.0003 --lr_disc=0.0001 --mini_D_num_epochs=2 --mini_G_num_epochs=1 --lambda_seg=0.2> in cluster <leonhard> Exited
+
+Job <python train_gan_3phase.py --lr_gen=0.0003 --lr_disc=0.0001 --mini_D_num_epochs=2 --mini_G_num_epochs=1 --lambda_seg=0.2> was submitted from host <lo-login-01> by user <takmaza> in cluster <leonhard> at Fri Jan 17 10:25:44 2020
+Job was executed on host(s) <8*lo-s4-084>, in queue <gpu.4h>, as user <takmaza> in cluster <leonhard> at Fri Jan 17 10:26:11 2020
+</cluster/home/takmaza> was used as the home directory.
+</cluster/home/takmaza/final_dl/ExPGAN> was used as the working directory.
+Started at Fri Jan 17 10:26:11 2020
+Terminated at Fri Jan 17 14:26:16 2020
+Results reported at Fri Jan 17 14:26:16 2020
+
+Your job looked like:
+
+------------------------------------------------------------
+# LSBATCH: User input
+python train_gan_3phase.py --lr_gen=0.0003 --lr_disc=0.0001 --mini_D_num_epochs=2 --mini_G_num_epochs=1 --lambda_seg=0.2
+------------------------------------------------------------
+
+TERM_RUNLIMIT: job killed after reaching LSF run time limit.
+Exited with exit code 140.
+
+Resource usage summary:
+
+    CPU time :                                   17546.00 sec.
+    Max Memory :                                 24499 MB
+    Average Memory :                             21073.64 MB
+    Total Requested Memory :                     245760.00 MB
+    Delta Memory :                               221261.00 MB
+    Max Swap :                                   -
+    Max Processes :                              4
+    Max Threads :                                18
+    Run time :                                   14418 sec.
+    Turnaround time :                            14432 sec.
+
+The output (if any) follows:
+
+##################################################
+MODEL DIRECTORY:  /cluster/scratch/takmaza/DL/models/2020-01-17-102615
+Namespace(b1_disc=0.5, b1_gen=0.5, b2_disc=0.999, b2_gen=0.999, batch_size=8, clip_value=0.01, dataset_folder='/cluster/scratch/takmaza/DL/segs', img_size=28, lambda_disc=1.0, lambda_recon=1.0, lambda_seg=0.2, log_frequency=20, logfile_name='logs.txt', lr_disc=0.0001, lr_gen=0.0003, mini_D_num_epochs=2, mini_G_num_epochs=1, model_load='', model_save='/cluster/scratch/takmaza/DL/', n_cpu=8, n_critic=5, num_epochs=200, sample_interval=400)
+cuda status:  True
+Switched to training mode
+Loading models from /cluster/scratch/takmaza/DL/models/2020-01-17-083755/phase1.pt 
+#######################################   PHASE 2    #########################################
+Phase 2 - Pre-training the discriminator
+Phase 2 - Epoch  0
+Phase 2 - Epoch  1
+/cluster/home/takmaza/.virtualenvs/dsc-env/lib/python3.7/site-packages/torch/nn/functional.py:2494: UserWarning: Default upsampling behavior when mode=bilinear is changed to align_corners=False since 0.4.0. Please specify align_corners=True if the old behavior is desired. See the documentation of nn.Upsample for details.
+  "See the documentation of nn.Upsample for details.".format(mode))
+#######################################   PHASE 3    #########################################
+Phase 3 - Adversarial Training
+##############################
+Epoch: 0
+Switched to eval mode
+Epoch 0: validation_loss=757.7474136352539, best_validation_loss=None 
+Saving models to /cluster/scratch/takmaza/DL/models/2020-01-17-102615 
+##############################
+Epoch: 1
+Switched to eval mode
+Epoch 1: validation_loss=737.226490020752, best_validation_loss=757.7474136352539 
+Saving models to /cluster/scratch/takmaza/DL/models/2020-01-17-102615 
+##############################
+Epoch: 2
+Switched to eval mode
+Epoch 2: validation_loss=686.3513870239258, best_validation_loss=737.226490020752 
+Saving models to /cluster/scratch/takmaza/DL/models/2020-01-17-102615 
+##############################
+Epoch: 3
+Switched to eval mode
+Epoch 3: validation_loss=730.7609672546387, best_validation_loss=686.3513870239258 
+##############################
+Epoch: 4
+Switched to eval mode
+Epoch 4: validation_loss=739.0096187591553, best_validation_loss=686.3513870239258 
+##############################
+Epoch: 5
+Switched to eval mode
+Epoch 5: validation_loss=746.384443283081, best_validation_loss=686.3513870239258 
+Saving models to /cluster/scratch/takmaza/DL/models/2020-01-17-102615 
+##############################
+Epoch: 6
+Switched to eval mode
+Epoch 6: validation_loss=725.1399517059326, best_validation_loss=686.3513870239258 
+##############################
+Epoch: 7
+Switched to eval mode
+Epoch 7: validation_loss=706.2936382293701, best_validation_loss=686.3513870239258 
+##############################
+Epoch: 8
+Switched to eval mode
+Epoch 8: validation_loss=721.9147968292236, best_validation_loss=686.3513870239258 
+##############################
+Epoch: 9
+Switched to eval mode
+Epoch 9: validation_loss=747.331205368042, best_validation_loss=686.3513870239258 
+##############################
+Epoch: 10
+Switched to eval mode
+Epoch 10: validation_loss=748.5553665161133, best_validation_loss=686.3513870239258 
+Saving models to /cluster/scratch/takmaza/DL/models/2020-01-17-102615 
+##############################
+Epoch: 11
+Switched to eval mode
+Epoch 11: validation_loss=742.4139461517334, best_validation_loss=686.3513870239258 
+##############################
+Epoch: 12
+Switched to eval mode
+Epoch 12: validation_loss=708.5638408660889, best_validation_loss=686.3513870239258 
+##############################
+Epoch: 13
+Switched to eval mode
+Epoch 13: validation_loss=744.4151515960693, best_validation_loss=686.3513870239258 
+##############################
+Epoch: 14
+Switched to eval mode
+Epoch 14: validation_loss=728.9380149841309, best_validation_loss=686.3513870239258 
+##############################
+Epoch: 15
+Switched to eval mode
+Epoch 15: validation_loss=771.0410175323486, best_validation_loss=686.3513870239258 
+Saving models to /cluster/scratch/takmaza/DL/models/2020-01-17-102615 
+##############################
+Epoch: 16
+User defined signal 2

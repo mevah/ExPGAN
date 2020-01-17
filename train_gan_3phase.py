@@ -327,7 +327,7 @@ if(load_gen):
 else:
     print("#######################################   PHASE 1    #########################################")
     print('Phase 1 - Pre-training the generator')
-    for epoch in range(4):
+    for epoch in range(15):
         print('Phase 1 - Epoch ',epoch)
         generator_G.train()
         for batch_idx, batch in enumerate(train_loader):
@@ -385,7 +385,7 @@ else:
 print("#######################################   PHASE 2    #########################################")
 print('Phase 2 - Pre-training the discriminator')
 total_step = 0
-for epoch in range(2):
+for epoch in range(1):
     print('Phase 2 - Epoch ',epoch)
     left_D.train()
     right_D.train()
@@ -441,7 +441,7 @@ for epoch in range(2):
         "right_disc": right_D.state_dict(),
         "generator": generator_G.state_dict()
         },
-        os.path.join(model_save_dir, "phase1.pt"))
+        os.path.join(model_save_dir, "phase2.pt"))
 
 
 print("#######################################   PHASE 3    #########################################")
