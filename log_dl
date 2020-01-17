@@ -1,0 +1,105 @@
+Sender: LSF System <lsfadmin@lo-s4-084>
+Subject: Job 3852268: <python train_gan_3phase.py --lr_gen=0.0003 --lr_disc=0.0001 --mini_D_num_epochs=2 --mini_G_num_epochs=1 --lambda_seg=0.2> in cluster <leonhard> Exited
+
+Job <python train_gan_3phase.py --lr_gen=0.0003 --lr_disc=0.0001 --mini_D_num_epochs=2 --mini_G_num_epochs=1 --lambda_seg=0.2> was submitted from host <lo-login-01> by user <takmaza> in cluster <leonhard> at Fri Jan 17 10:23:08 2020
+Job was executed on host(s) <8*lo-s4-084>, in queue <gpu.4h>, as user <takmaza> in cluster <leonhard> at Fri Jan 17 10:23:42 2020
+</cluster/home/takmaza> was used as the home directory.
+</cluster/home/takmaza/final_dl/ExPGAN> was used as the working directory.
+Started at Fri Jan 17 10:23:42 2020
+Terminated at Fri Jan 17 10:23:56 2020
+Results reported at Fri Jan 17 10:23:56 2020
+
+Your job looked like:
+
+------------------------------------------------------------
+# LSBATCH: User input
+python train_gan_3phase.py --lr_gen=0.0003 --lr_disc=0.0001 --mini_D_num_epochs=2 --mini_G_num_epochs=1 --lambda_seg=0.2
+------------------------------------------------------------
+
+Exited with exit code 1.
+
+Resource usage summary:
+
+    CPU time :                                   10.88 sec.
+    Max Memory :                                 3973 MB
+    Average Memory :                             363.00 MB
+    Total Requested Memory :                     245760.00 MB
+    Delta Memory :                               241787.00 MB
+    Max Swap :                                   -
+    Max Processes :                              3
+    Max Threads :                                6
+    Run time :                                   25 sec.
+    Turnaround time :                            48 sec.
+
+The output (if any) follows:
+
+##################################################
+MODEL DIRECTORY:  /cluster/scratch/takmaza/DL/models/2020-01-17-102345
+Namespace(b1_disc=0.5, b1_gen=0.5, b2_disc=0.999, b2_gen=0.999, batch_size=8, clip_value=0.01, dataset_folder='/cluster/scratch/takmaza/DL/segs', img_size=28, lambda_disc=1.0, lambda_recon=1.0, lambda_seg=0.2, log_frequency=20, logfile_name='logs.txt', lr_disc=0.0001, lr_gen=0.0003, mini_D_num_epochs=2, mini_G_num_epochs=1, model_load='', model_save='/cluster/scratch/takmaza/DL/', n_cpu=8, n_critic=5, num_epochs=200, sample_interval=400)
+cuda status:  True
+Switched to training mode
+Loading models from /cluster/scratch/takmaza/DL/models/2020-01-17-083755/phase1.pt 
+#######################################   PHASE 2    #########################################
+Phase 2 - Pre-training the discriminator
+Phase 2 - Epoch  0
+Traceback (most recent call last):
+  File "train_gan_3phase.py", line 406, in <module>
+    gen_fake_left, gen_fake_right, gen_fake_seg = generator_G(source_img, source_segm)
+  File "/cluster/home/takmaza/.virtualenvs/dsc-env/lib/python3.7/site-packages/torch/nn/modules/module.py", line 541, in __call__
+    result = self.forward(*input, **kwargs)
+  File "/cluster/home/takmaza/final_dl/ExPGAN/gan_model.py", line 224, in forward
+    im_d1 = self.im_down1(im_in)
+  File "/cluster/home/takmaza/.virtualenvs/dsc-env/lib/python3.7/site-packages/torch/nn/modules/module.py", line 541, in __call__
+    result = self.forward(*input, **kwargs)
+  File "/cluster/home/takmaza/final_dl/ExPGAN/gan_model.py", line 131, in forward
+    out = self.block(x)
+  File "/cluster/home/takmaza/.virtualenvs/dsc-env/lib/python3.7/site-packages/torch/nn/modules/module.py", line 541, in __call__
+    result = self.forward(*input, **kwargs)
+  File "/cluster/home/takmaza/.virtualenvs/dsc-env/lib/python3.7/site-packages/torch/nn/modules/container.py", line 92, in forward
+    input = module(input)
+  File "/cluster/home/takmaza/.virtualenvs/dsc-env/lib/python3.7/site-packages/torch/nn/modules/module.py", line 541, in __call__
+    result = self.forward(*input, **kwargs)
+  File "/cluster/home/takmaza/.virtualenvs/dsc-env/lib/python3.7/site-packages/torch/nn/modules/conv.py", line 345, in forward
+    return self.conv2d_forward(input, self.weight)
+  File "/cluster/home/takmaza/.virtualenvs/dsc-env/lib/python3.7/site-packages/torch/nn/modules/conv.py", line 342, in conv2d_forward
+    self.padding, self.dilation, self.groups)
+RuntimeError: Input type (torch.cuda.FloatTensor) and weight type (torch.FloatTensor) should be the same
+Sender: LSF System <lsfadmin@lo-s4-072>
+Subject: Job 3852392: <python train_gan_3phase.py --lr_gen=0.0003 --lr_disc=0.0001 --mini_D_num_epochs=2 --mini_G_num_epochs=1 --lambda_seg=0.2> in cluster <leonhard> Exited
+
+Job <python train_gan_3phase.py --lr_gen=0.0003 --lr_disc=0.0001 --mini_D_num_epochs=2 --mini_G_num_epochs=1 --lambda_seg=0.2> was submitted from host <lo-login-01> by user <takmaza> in cluster <leonhard> at Fri Jan 17 10:24:54 2020
+Job was executed on host(s) <8*lo-s4-072>, in queue <gpu.4h>, as user <takmaza> in cluster <leonhard> at Fri Jan 17 10:25:11 2020
+</cluster/home/takmaza> was used as the home directory.
+</cluster/home/takmaza/final_dl/ExPGAN> was used as the working directory.
+Started at Fri Jan 17 10:25:11 2020
+Terminated at Fri Jan 17 10:25:13 2020
+Results reported at Fri Jan 17 10:25:13 2020
+
+Your job looked like:
+
+------------------------------------------------------------
+# LSBATCH: User input
+python train_gan_3phase.py --lr_gen=0.0003 --lr_disc=0.0001 --mini_D_num_epochs=2 --mini_G_num_epochs=1 --lambda_seg=0.2
+------------------------------------------------------------
+
+Exited with exit code 1.
+
+Resource usage summary:
+
+    CPU time :                                   0.26 sec.
+    Max Memory :                                 10 MB
+    Average Memory :                             -
+    Total Requested Memory :                     245760.00 MB
+    Delta Memory :                               245750.00 MB
+    Max Swap :                                   -
+    Max Processes :                              -
+    Max Threads :                                -
+    Run time :                                   25 sec.
+    Turnaround time :                            19 sec.
+
+The output (if any) follows:
+
+  File "train_gan_3phase.py", line 324
+    left_D.cuda()
+         ^
+IndentationError: expected an indented block

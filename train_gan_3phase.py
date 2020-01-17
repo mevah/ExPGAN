@@ -133,10 +133,10 @@ def save_model(left_D, right_D, generator_G,epoch=0, best_model=False):
             os.path.join(model_save_dir, "model"+str(epoch)+".pt"))
 
     
-def load_model(exp_img_shape):
-    logging('Loading models from {} '.format(opt.model_load))
+def load_model(exp_img_shape, dir_load=opt.model_load):
+    logging('Loading models from {} '.format(dir_load))
     #loaded = torch.load(os.path.join(model_save_dir, "model.pt"))
-    loaded = torch.load(opt.model_load)
+    loaded = torch.load(dir_load)
     
     left_D = LeftDiscriminator(exp_img_shape)
     right_D = RightDiscriminator(exp_img_shape)
@@ -317,67 +317,75 @@ if torch.cuda.device_count() > 1:
 print('Switched to training mode')
 
 
-print("#######################################   PHASE 1    #########################################")
-print('Phase 1 - Pre-training the generator')
-for epoch in range(4):
-    print('Phase 1 - Epoch ',epoch)
-    generator_G.train()
-    for batch_idx, batch in enumerate(train_loader):
-        weight_segmentation = mask_tensor.repeat(batch['cropped'].size(0), 256, 1)
-        weight_rec_left = mask_tensor_rec_left.repeat(batch['cropped'].size(0), 3, 256, 1)
-        weight_rec_right = mask_tensor_rec_right.repeat(batch['cropped'].size(0), 3, 256, 1)
+load_gen= False
+if(load_gen):
+    left_D, right_D, generator_G = load_model(exp_img_shape, '/cluster/scratch/takmaza/DL/models/2020-01-17-083755/phase1.pt')
+    if cuda:
+        left_D.cuda()
+        right_D.cuda()
+        generator_G.cuda()
+else:
+    print("#######################################   PHASE 1    #########################################")
+    print('Phase 1 - Pre-training the generator')
+    for epoch in range(4):
+        print('Phase 1 - Epoch ',epoch)
+        generator_G.train()
+        for batch_idx, batch in enumerate(train_loader):
+            weight_segmentation = mask_tensor.repeat(batch['cropped'].size(0), 256, 1)
+            weight_rec_left = mask_tensor_rec_left.repeat(batch['cropped'].size(0), 3, 256, 1)
+            weight_rec_right = mask_tensor_rec_right.repeat(batch['cropped'].size(0), 3, 256, 1)
 
-        if cuda: 
-            weight_segmentation = weight_segmentation.cuda()
-            weight_rec_left = weight_rec_left.cuda()
-            weight_rec_right = weight_rec_right.cuda()
+            if cuda: 
+                weight_segmentation = weight_segmentation.cuda()
+                weight_rec_left = weight_rec_left.cuda()
+                weight_rec_right = weight_rec_right.cuda()
 
-    
-        #print('epoch_G: ', epoch_G)
-        source_img = batch["cropped"]
-        source_segm = batch["cropped_segm"]
-        true_im = batch["img",0]
-        true_segm = batch["segm",0]
-        source_img = source_img.cuda()
-        source_segm = source_segm.cuda()
-        true_im = true_im.cuda()
-        true_segm = true_segm.cuda()
-        #print(true_segm.shape)
-        masked_target = mask_segm(true_segm, source_segm).to(torch.int64)
-        orj_left = true_im[:,:,:, 0:128]
-        orj_right = true_im[:,:,:, -128:]
+        
+            #print('epoch_G: ', epoch_G)
+            source_img = batch["cropped"]
+            source_segm = batch["cropped_segm"]
+            true_im = batch["img",0]
+            true_segm = batch["segm",0]
+            source_img = source_img.cuda()
+            source_segm = source_segm.cuda()
+            true_im = true_im.cuda()
+            true_segm = true_segm.cuda()
+            #print(true_segm.shape)
+            masked_target = mask_segm(true_segm, source_segm).to(torch.int64)
+            orj_left = true_im[:,:,:, 0:128]
+            orj_right = true_im[:,:,:, -128:]
 
-        gen_fake_left, gen_fake_right, gen_fake_seg = generator_G(source_img, source_segm)
-        optimizer_G.zero_grad()
-        _, masked_target = masked_target.max(dim=1)
+            gen_fake_left, gen_fake_right, gen_fake_seg = generator_G(source_img, source_segm)
+            optimizer_G.zero_grad()
+            _, masked_target = masked_target.max(dim=1)
 
-        loss_seg = nn.CrossEntropyLoss(reduction='none')(torch.squeeze(gen_fake_seg), torch.squeeze(masked_target))
-        loss_seg = weight_segmentation*loss_seg # Ensure that weights are scaled appropriately
-        loss_seg = torch.mean(loss_seg) # Sums the loss per image
+            loss_seg = nn.CrossEntropyLoss(reduction='none')(torch.squeeze(gen_fake_seg), torch.squeeze(masked_target))
+            loss_seg = weight_segmentation*loss_seg # Ensure that weights are scaled appropriately
+            loss_seg = torch.mean(loss_seg) # Sums the loss per image
 
-        loss_recon_left = nn.MSELoss(reduction='none')(gen_fake_left, orj_left)
-        loss_recon_left = weight_rec_left*loss_recon_left # Ensure that weights are scaled appropriately
-        loss_recon_left = torch.mean(loss_recon_left) # Sums the loss per image
-        loss_recon_right = nn.MSELoss(reduction='none')(gen_fake_right, orj_right)
-        loss_recon_right = weight_rec_right*loss_recon_right # Ensure that weights are scaled appropriately
-        loss_recon_right = torch.mean(loss_recon_right) # Sums the loss per image
+            loss_recon_left = nn.MSELoss(reduction='none')(gen_fake_left, orj_left)
+            loss_recon_left = weight_rec_left*loss_recon_left # Ensure that weights are scaled appropriately
+            loss_recon_left = torch.mean(loss_recon_left) # Sums the loss per image
+            loss_recon_right = nn.MSELoss(reduction='none')(gen_fake_right, orj_right)
+            loss_recon_right = weight_rec_right*loss_recon_right # Ensure that weights are scaled appropriately
+            loss_recon_right = torch.mean(loss_recon_right) # Sums the loss per image
 
-        loss = opt.lambda_seg * loss_seg + opt.lambda_recon*loss_recon_left + opt.lambda_recon*loss_recon_right
-        loss.backward()
-        optimizer_G.step() 
+            loss = opt.lambda_seg * loss_seg + opt.lambda_recon*loss_recon_left + opt.lambda_recon*loss_recon_right
+            loss.backward()
+            optimizer_G.step() 
 
-    torch.save({
-        "left_disc": left_D.state_dict(),
-        "right_disc": right_D.state_dict(),
-        "generator": generator_G.state_dict()
-        },
-        os.path.join(model_save_dir, "phase1.pt"))
+        torch.save({
+            "left_disc": left_D.state_dict(),
+            "right_disc": right_D.state_dict(),
+            "generator": generator_G.state_dict()
+            },
+            os.path.join(model_save_dir, "phase1.pt"))
 
 
 print("#######################################   PHASE 2    #########################################")
 print('Phase 2 - Pre-training the discriminator')
 total_step = 0
-for epoch in range(opt.num_epochs):
+for epoch in range(2):
     print('Phase 2 - Epoch ',epoch)
     left_D.train()
     right_D.train()
