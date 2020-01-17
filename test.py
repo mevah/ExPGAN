@@ -8,7 +8,7 @@ import torchvision.models as models
 from fcn_model import fcn8s
 import cityscapes_seg_loader as sloader
 from gan_model import ExPGenerator
-
+import torch.nn.functional as F
 def test(args):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
  
@@ -17,7 +17,6 @@ def test(args):
     print("Read Input Images from : {}".format(args.img_path))
     img_path= args.img_path + "leftImg8bit/ourtest"
     label_path= args.img_path + "gtFine/ourtest"
-    
     img_path_list= os.listdir(img_path)
     n_classes= 7
     loader= sloader.cityscapesLoader(root=args.img_path, is_transform=True, img_norm=True, test_mode=True)
@@ -33,7 +32,8 @@ def test(args):
 
     #prepare image for inference
             orig_size = img.shape[:-1]
-            img = misc.imresize(img, (512, 1024))
+            img_full = misc.imresize(img, (256, 512))
+            img= img_full[:,128:384, :]
             img = img[:, :, ::-1]
             img = img.astype(np.float64)
             #img -= loader.mean
@@ -65,36 +65,40 @@ def test(args):
             misc.imsave(args.out_path + "/segoutputs/" + file_root + "_pred.png", decoded)
             print("Segmentation mask saved at: {}".format(args.out_path + "/segoutputs"))
     #downsample and crop images and segmentations for outpainting
-            img_resized= misc.imresize(img, (256,512))
-            label_resized= misc.imresize(label, (256,512))                
-            img_crop= img_resized[:,:,128:384]
+            label_resized=misc.imresize(label, (256,512))                
+            img_crop= img
             label_crop=label_resized[:,128:384]
-            seg_resized= misc.imresize(pred, (256,512))
-            seg_crop= seg_resized[:, 128:384]
+         #   print(pred.shape    )
+         #   seg_resized= (pred[ ::4, ::4])
+            seg_crop= pred
 
     #Load generator to generate images
             generator_G= ExPGenerator()
-            state = (torch.load(args.seg_model_path)["model_state"])
-            model.load_state_dict(state)
-            model.eval()
-            model.to(device)
+            state = (torch.load(args.gen_model_path))
+            generator_G.load_state_dict(state.get('generator'))
+            generator_G.eval()
+            generator_G.to(device)
 
     #perform generation
-            img_resized = img_resized.cuda()
-            seg_resized = seg_resized.cuda()
+            img_resized = torch.from_numpy(img_full).cuda()
+            #seg_resized = torch.from_numpy(seg_resized).cuda()
             img_crop = img_crop.cuda()
-            seg_crop = seg_crop.cuda()
+            seg_crop = torch.from_numpy(seg_crop).cuda()
+            seg_crop= torch.nn.functional.one_hot(seg_crop).permute(2,0,1).float()
+            seg_crop= seg_crop.unsqueeze(0)
 
             orj_left = img_resized[:,:, 0:128]
             orj_right = img_resized[:,:, -128:]
-
+        
             gen_fake_left, gen_fake_right, gen_fake_seg = generator_G(img_crop, seg_crop)
             generated= torch.cat((gen_fake_left, img_crop, gen_fake_right), dim=3)
-
+            gen_im= generated.detach().cpu().numpy()
+            gen_im= np.squeeze(gen_im, axis=0)
+            gen_im= gen_im.transpose(1,2,0)
     #save generated images 
             if not os.path.exists(args.out_path + "/genoutputs"):
                 os.mkdir(os.path.join(os.getcwd(),args.out_path) + "/genoutputs")
-            misc.imsave(args.out_path + "/genoutputs/" + file_root + "_gen.png", generated)
+            misc.imsave(args.out_path + "/genoutputs/" + file_root + "_gen.png", gen_im)
             print("Outpainted image saved at: {}".format(args.out_path + "/genoutputs"))
 
 
