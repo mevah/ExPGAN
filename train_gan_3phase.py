@@ -372,7 +372,7 @@ for epoch in range(15):
         os.path.join(model_save_dir, "phase1.pt"))
 
 
-# Phase 1 - Only the left and right discriminators are being trained
+# Phase 2 - Only the left and right discriminators are being trained
 print("#######################################   PHASE 2    #########################################")
 print('Phase 2 - Pre-training the discriminators')
 total_step = 0

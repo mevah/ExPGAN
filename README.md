@@ -1,6 +1,8 @@
 # ExPGAN
 ## ExPGAN: Segmentation Guided Image Outpainting<br>
 
+![alt text](https://raw.githubusercontent.com/mevah/ExPGAN/master/ExpGAN_schema.png)
+
 
 ### Data Preparation Instructions
 Training and evaluation of our model is performed using the Cityscapes dataset.<br>
@@ -12,20 +14,26 @@ https://www.cityscapes-dataset.com/file-handling/?packageID=1<br>
 leftImg8bit_trainvaltest.zip (11GB)<br>
 https://www.cityscapes-dataset.com/file-handling/?packageID=3<br>
 <br>
-After downloading these two folders, unzip them and put them into the same directory, with the following folder structure:<br>
+After downloading these two folders, unzip them and put them into the same directory, with the following folder structure (please create 2 new subdirectories, *left8bit/ourtest*, *gtFine/ourtest*):<br>
 
 /path/to/dataset   <br>
 &nbsp;&nbsp;&nbsp;&nbsp;|__ left8bit      <br>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|__ train      <br>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|__ val        <br>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|__ test       <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|__ ourtest       <br>
 &nbsp;&nbsp;&nbsp;&nbsp;|__ gtFine        <br>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|__ train      <br>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|__ val        <br>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|__ test       <br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|__ ourtest       <br>
 
-Create 2 new sub
 Please move the *frankfurt* subdirectories inside *left8bit/val* and *gtFine/val* directories to *left8bit/ourtest* and *gtFine/ourtest* directories, as we do not use the images from the *frankfurt* folder during validation, instead we use them only for the evaluation of our method.
+
+Note: If you would like to use ground-truth segmentation maps during the training, use the directory structure above. If you would like to download the segmentations we have obtained using the segmentation network we have trained, please click on the following link: <br>
+https://drive.google.com/open?id=1IjM3PX8d4LT0HYcecjQ9VbYiSkmdEKWH
+After downloading the segmentation data, unzip it, and replace the contents of the gtFine folder described above with these segmentation maps.
+
 
 ## Training
 For two different types of experiments, two different training scripts, ``train_gan.py`` and ``train_gan_3phase.py`` are used. 
@@ -86,8 +94,16 @@ and after unzipping this file ``2020-01-16-162729.zip`` move it to an arbitrary 
 
 You can than run the ``test.py`` script with the following arguments, along with specifying the output directory ``/path/to/output`` where you would like to save the generated (outpainted) images.
 
+``/path/to/dataset/`` should be folder which has ``val/ourtest/frankfurt`` as one of its subdirectories.
+
 ### test.py
 ``
 python test.py --seg_model_path=/path/to/pretrained/segmentation/model 
 --gen_model_path=/path/to/model/2020-01-16-162729 --img_path=/path/to/dataset --out_path=/path/to/output
+``
+
+A sample command for Leonhard can be as the following: <br>
+``
+bsub -n 2 -W 03:00 -o test_log -R "rusage[mem=5G, ngpus_excl_p=1]"  python test.py --seg_model_path=/path/to/pretrained/segmentation/model/fcn8s_cityscapes_best_model.pkl 
+--gen_model_path=/path/to/model/2020-01-16-144558/model.pt --img_path=/path/to/dataset/ --out_path=/path/to/output
 ``
