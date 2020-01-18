@@ -23,6 +23,8 @@ from gan_model import LeftDiscriminator, RightDiscriminator, ExPGenerator
 from gan_model import initialize_weights
 
 parser = argparse.ArgumentParser()
+parser.add_argument("--dataset_folder", type=str, help="dataset folder, directory which includes left8bit and gtFine folders")
+parser.add_argument("--model_save", type=str, help='specify the directory to save models')
 parser.add_argument("--num_epochs", type=int, default=200, help="number of epochs of training")
 parser.add_argument("--mini_D_num_epochs", type=int, default=3, help="number of epochs of training D")
 parser.add_argument("--mini_G_num_epochs", type=int, default=1, help="number of epochs of training G")
@@ -41,11 +43,6 @@ parser.add_argument("--img_size", type=int, default=28, help="size of each image
 parser.add_argument("--n_critic", type=int, default=5, help="number of training steps for discriminator per iter")
 parser.add_argument("--clip_value", type=float, default=0.01, help="lower and upper clip value for disc. weights")
 parser.add_argument("--sample_interval", type=int, default=400, help="interval betwen image samples")
-
-#parser.add_argument("--dataset_folder", type=str, default='/cluster/scratch/himeva/DL_Project/data_pred', help="dataset folder, directory which includes left8bit and gtFine folders")
-#parser.add_argument("--model_save", type=str, default='/cluster/scratch/himeva/DL_Project/ExPGAN/', help='specify the directory to save models')
-parser.add_argument("--dataset_folder", type=str, default='/cluster/scratch/takmaza/DL/segs', help="dataset folder, directory which includes left8bit and gtFine folders")
-parser.add_argument("--model_save", type=str, default='/cluster/scratch/takmaza/DL/', help='specify the directory to save models')
 
 parser.add_argument("--log_frequency", type=int, default=20, help="log frequency in terms of steps")
 parser.add_argument("--logfile_name", type=str, default='logs.txt')
@@ -68,7 +65,7 @@ print('MODEL DIRECTORY: ', model_save_dir)
 def save_opts(args):
     """Save options to disk
     """
-    models_dir = model_save_dir #os.path.join(model_save_dir, "model")
+    models_dir = model_save_dir
     if not os.path.exists(models_dir):
         os.makedirs(models_dir)
     to_save = args.__dict__.copy()
@@ -162,17 +159,6 @@ def img_denorm(img):
     res = torch.clamp(res, 0, 1)
     return(res)
 
-colors = [
-    [128, 64, 128],
-    [244, 35, 232],
-    [70, 70, 70],
-    [102, 102, 156],
-    [190, 153, 153],
-    [153, 153, 153],
-    [250, 170, 30],
-]
-
-label_colours = dict(zip(range(7), colors))
         
 def log_tbx(writers, mode, batch, outputs, left_weights, right_weights, gen_weights,losses_d, losses_g, total_step):
     """
@@ -198,14 +184,10 @@ def log_tbx(writers, mode, batch, outputs, left_weights, right_weights, gen_weig
             "generated_normalized/{}".format(j),
             outputs[("generated")][j], total_step)
 
-        #print(np.expand_dims((30*torch.argmax(batch[("segm",0)][j], dim=0)).numpy(),axis=0).shape)
-        #print(np.expand_dims((30*torch.argmax(batch[("segm",0)][j], dim=0)).numpy(),axis=0))
         writer.add_image(
             "seg/{}".format(j),
             np.expand_dims((30*torch.argmax(batch[("segm",0)][j], dim=0)).numpy(),axis=0).astype(np.uint8), total_step)
 
-        #print(np.expand_dims((30*torch.argmax(outputs[("generated_segs")][j], dim=0)).cpu().data,axis=0).shape)
-        #print(np.expand_dims((30*torch.argmax(outputs[("generated_segs")][j], dim=0)).cpu().data,axis=0))
         writer.add_image(
             "seg_generated/{}".format(j),
             np.expand_dims((30*torch.argmax(outputs[("generated_segs")][j], dim=0)).cpu().data,axis=0).astype(np.uint8), total_step)
@@ -229,7 +211,6 @@ def get_weights(net):
     return weight
 
 ### MAIN
-
 logging(str(opt))
 exp_img_shape = (3, 256, 384)
 cuda = True if torch.cuda.is_available() else False
@@ -309,77 +290,66 @@ if torch.cuda.device_count() > 1:
     right_D= nn.DataParallel(right_D)
     generator_G = nn.DataParallel(generator_G)
 
-#try initializing weights
-#left_D.apply(initialize_weights)
-#right_D.apply(initialize_weights)
-#generator_G.apply(initialize_weights)
 
 print('Switched to training mode')
 
 
-load_gen= False
-if(load_gen):
-    left_D, right_D, generator_G = load_model(exp_img_shape, '/cluster/scratch/takmaza/DL/models/2020-01-17-083755/phase1.pt')
-    if cuda:
-        left_D.cuda()
-        right_D.cuda()
-        generator_G.cuda()
-else:
-    print("#######################################   PHASE 1    #########################################")
-    print('Phase 1 - Pre-training the generator')
-    for epoch in range(15):
-        print('Phase 1 - Epoch ',epoch)
-        generator_G.train()
-        for batch_idx, batch in enumerate(train_loader):
-            weight_segmentation = mask_tensor.repeat(batch['cropped'].size(0), 256, 1)
-            weight_rec_left = mask_tensor_rec_left.repeat(batch['cropped'].size(0), 3, 256, 1)
-            weight_rec_right = mask_tensor_rec_right.repeat(batch['cropped'].size(0), 3, 256, 1)
 
-            if cuda: 
-                weight_segmentation = weight_segmentation.cuda()
-                weight_rec_left = weight_rec_left.cuda()
-                weight_rec_right = weight_rec_right.cuda()
+print("#######################################   PHASE 1    #########################################")
+print('Phase 1 - Pre-training the generator')
+for epoch in range(15):
+    print('Phase 1 - Epoch ',epoch)
+    generator_G.train()
+    for batch_idx, batch in enumerate(train_loader):
+        weight_segmentation = mask_tensor.repeat(batch['cropped'].size(0), 256, 1)
+        weight_rec_left = mask_tensor_rec_left.repeat(batch['cropped'].size(0), 3, 256, 1)
+        weight_rec_right = mask_tensor_rec_right.repeat(batch['cropped'].size(0), 3, 256, 1)
 
-        
-            #print('epoch_G: ', epoch_G)
-            source_img = batch["cropped"]
-            source_segm = batch["cropped_segm"]
-            true_im = batch["img",0]
-            true_segm = batch["segm",0]
-            source_img = source_img.cuda()
-            source_segm = source_segm.cuda()
-            true_im = true_im.cuda()
-            true_segm = true_segm.cuda()
-            #print(true_segm.shape)
-            masked_target = mask_segm(true_segm, source_segm).to(torch.int64)
-            orj_left = true_im[:,:,:, 0:128]
-            orj_right = true_im[:,:,:, -128:]
+        if cuda: 
+            weight_segmentation = weight_segmentation.cuda()
+            weight_rec_left = weight_rec_left.cuda()
+            weight_rec_right = weight_rec_right.cuda()
 
-            gen_fake_left, gen_fake_right, gen_fake_seg = generator_G(source_img, source_segm)
-            optimizer_G.zero_grad()
-            _, masked_target = masked_target.max(dim=1)
+    
+        #print('epoch_G: ', epoch_G)
+        source_img = batch["cropped"]
+        source_segm = batch["cropped_segm"]
+        true_im = batch["img",0]
+        true_segm = batch["segm",0]
+        source_img = source_img.cuda()
+        source_segm = source_segm.cuda()
+        true_im = true_im.cuda()
+        true_segm = true_segm.cuda()
+        #print(true_segm.shape)
+        masked_target = mask_segm(true_segm, source_segm).to(torch.int64)
+        orj_left = true_im[:,:,:, 0:128]
+        orj_right = true_im[:,:,:, -128:]
 
-            loss_seg = nn.CrossEntropyLoss(reduction='none')(torch.squeeze(gen_fake_seg), torch.squeeze(masked_target))
-            loss_seg = weight_segmentation*loss_seg # Ensure that weights are scaled appropriately
-            loss_seg = torch.mean(loss_seg) # Sums the loss per image
+        gen_fake_left, gen_fake_right, gen_fake_seg = generator_G(source_img, source_segm)
+        optimizer_G.zero_grad()
+        _, masked_target = masked_target.max(dim=1)
 
-            loss_recon_left = nn.MSELoss(reduction='none')(gen_fake_left, orj_left)
-            loss_recon_left = weight_rec_left*loss_recon_left # Ensure that weights are scaled appropriately
-            loss_recon_left = torch.mean(loss_recon_left) # Sums the loss per image
-            loss_recon_right = nn.MSELoss(reduction='none')(gen_fake_right, orj_right)
-            loss_recon_right = weight_rec_right*loss_recon_right # Ensure that weights are scaled appropriately
-            loss_recon_right = torch.mean(loss_recon_right) # Sums the loss per image
+        loss_seg = nn.CrossEntropyLoss(reduction='none')(torch.squeeze(gen_fake_seg), torch.squeeze(masked_target))
+        loss_seg = weight_segmentation*loss_seg # Ensure that weights are scaled appropriately
+        loss_seg = torch.mean(loss_seg) # Sums the loss per image
 
-            loss = opt.lambda_seg * loss_seg + opt.lambda_recon*loss_recon_left + opt.lambda_recon*loss_recon_right
-            loss.backward()
-            optimizer_G.step() 
+        loss_recon_left = nn.MSELoss(reduction='none')(gen_fake_left, orj_left)
+        loss_recon_left = weight_rec_left*loss_recon_left # Ensure that weights are scaled appropriately
+        loss_recon_left = torch.mean(loss_recon_left) # Sums the loss per image
+        loss_recon_right = nn.MSELoss(reduction='none')(gen_fake_right, orj_right)
+        loss_recon_right = weight_rec_right*loss_recon_right # Ensure that weights are scaled appropriately
+        loss_recon_right = torch.mean(loss_recon_right) # Sums the loss per image
 
-        torch.save({
-            "left_disc": left_D.state_dict(),
-            "right_disc": right_D.state_dict(),
-            "generator": generator_G.state_dict()
-            },
-            os.path.join(model_save_dir, "phase1.pt"))
+        loss = opt.lambda_seg * loss_seg + opt.lambda_recon*loss_recon_left + opt.lambda_recon*loss_recon_right
+        loss.backward()
+        optimizer_G.step() 
+
+    torch.save({
+        "left_disc": left_D.state_dict(),
+        "right_disc": right_D.state_dict(),
+        "generator": generator_G.state_dict()
+        },
+        os.path.join(model_save_dir, "phase1.pt"))
 
 
 print("#######################################   PHASE 2    #########################################")
@@ -464,21 +434,10 @@ for epoch in range(opt.num_epochs):
             weight_rec_left = weight_rec_left.cuda()
             weight_rec_right = weight_rec_right.cuda()
 
-        #if batch_idx % 200 == 0:
-        #    print('batch_idx: ',  batch_idx)
-        #print('#'*20)
         for epoch_D in range(mini_D_num_epochs):
             #print('epoch_D: ', epoch_D)
             source_img = batch["cropped"]
             source_segm = batch["cropped_segm"]
-            #print('source_segm')
-            #print(torch.max(source_segm))
-            #print(source_segm.shape)
-            #print(np.argmax(source_segm.data,axis=1))
-            #print(np.argmax(source_segm.data,axis=1).shape)
-            #print('LOLAPOZA')
-            #print(np.argmax(source_segm[0].data,axis=0))
-            #print(np.argmax(source_segm[0].cpu().numpy(),axis=0).max())
 
             true_im = add_noise(batch["img",0]) #Before cropping original image  noise needs to be added 
             source_img = source_img.cuda()
@@ -510,15 +469,6 @@ for epoch in range(opt.num_epochs):
             lbl_est_right = right_D(right_imgs)
             loss_D_right =adversarial_loss(torch.squeeze(lbl_est_right), torch.squeeze(lbls))
 
-            #print('#'*50)
-            #print('lbl_est shape: ', torch.squeeze(lbl_est_right).shape)
-            #print('lbls shape: ', torch.squeeze(lbls).shape)
-            #print('lbl_est_left: ', lbl_est_left)
-            #print('lbl_est_right: ', lbl_est_right)
-            #print('lbls: ', lbls)
-            #print('loss_D_left: ',loss_D_left)
-            #print('loss_D_right: ',loss_D_right)
-
             optimizer_D_right.zero_grad()
             loss_D_right.backward()
             optimizer_D_right.step()
@@ -526,7 +476,6 @@ for epoch in range(opt.num_epochs):
         losses_d = write_losses_d(loss_D_left,loss_D_right)
 
         for epoch_G in range(mini_G_num_epochs):
-            #print('epoch_G: ', epoch_G)
             source_img = batch["cropped"]
             source_segm = batch["cropped_segm"]
             true_im = batch["img",0]
@@ -535,7 +484,6 @@ for epoch in range(opt.num_epochs):
             source_segm = source_segm.cuda()
             true_im = true_im.cuda()
             true_segm = true_segm.cuda()
-            #print(true_segm.shape)
             masked_target = mask_segm(true_segm, source_segm).to(torch.int64)
             orj_left = true_im[:,:,:, 0:128]
             orj_right = true_im[:,:,:, -128:]
@@ -552,57 +500,22 @@ for epoch in range(opt.num_epochs):
             lbl_est_left = left_D(fake_left)
             lbl_est_right = right_D(fake_right)
 
-
             optimizer_G.zero_grad()
-            #print(torch.squeeze(gen_fake_seg).shape)
-            #print(torch.squeeze(masked_target).shape)
-            
-            #print('SHAPE:')
-            #print('gen_fake_seg', torch.squeeze(gen_fake_seg).shape)
-            #print('masked_target_before_max', torch.squeeze(masked_target).shape)
             _, masked_target = masked_target.max(dim=1)
-            #print('masked_target_after_max', torch.squeeze(masked_target).shape)
-            #nn.CrossEntropyLoss()(out, Variable(targets))
-            #print(torch.squeeze(gen_fake_seg).shape)
-            #print(torch.squeeze(masked_target).shape)
 
             loss_seg = nn.CrossEntropyLoss(reduction='none')(torch.squeeze(gen_fake_seg), torch.squeeze(masked_target))
             loss_seg = weight_segmentation*loss_seg # Ensure that weights are scaled appropriately
             loss_seg = torch.mean(loss_seg) # Sums the loss per image
 
-            #loss_seg = F.cross_entropy(torch.squeeze(gen_fake_seg), torch.squeeze(masked_target))
-
             loss_D_left_g = adversarial_loss(torch.squeeze(lbl_est_left), torch.squeeze(true_lbl))
             loss_D_right_g = adversarial_loss(torch.squeeze(lbl_est_right), torch.squeeze(true_lbl))
 
-            #see D(G(z))s for left and right
-            #left_output_d_g = lbl_est_left.mean().item()
-#            right_output_d_g = lbl_est_right.mean().item()
-
-            #print(loss_seg.requires_grad)
-                
             loss_recon_left = nn.MSELoss(reduction='none')(gen_fake_left, orj_left)
-            #print(loss_recon_left.shape)
-            #print(weight_rec_left.shape)
             loss_recon_left = weight_rec_left*loss_recon_left # Ensure that weights are scaled appropriately
             loss_recon_left = torch.mean(loss_recon_left) # Sums the loss per image
             loss_recon_right = nn.MSELoss(reduction='none')(gen_fake_right, orj_right)
             loss_recon_right = weight_rec_right*loss_recon_right # Ensure that weights are scaled appropriately
             loss_recon_right = torch.mean(loss_recon_right) # Sums the loss per image
-
-            #loss_recon_left = F.mse_loss(gen_fake_left, orj_left)
-            #loss_recon_right = F.mse_loss(gen_fake_right, orj_right)
-
-            #print('++'*50)
-            #print('GENERATOR EPOCH')
-            #print('lbl_est shape: ', torch.squeeze(lbl_est_right).shape)
-            #print('lbls shape: ', torch.squeeze(lbls).shape)
-            #print('lbl_est_left: ', lbl_est_left)
-            #print('lbl_est_right: ', lbl_est_right)
-            #print('lbls: ', lbls)
-            #print('loss_D_left: ',loss_D_left_g)
-            #print('loss_D_right: ',loss_D_right_g)
-
 
             loss = opt.lambda_seg * loss_seg + opt.lambda_disc * loss_D_left_g + opt.lambda_disc * loss_D_right_g + opt.lambda_recon*loss_recon_left + opt.lambda_recon*loss_recon_right
             loss.backward()
@@ -636,7 +549,6 @@ for epoch in range(opt.num_epochs):
             weight_rec_left = weight_rec_left.cuda()
             weight_rec_right = weight_rec_right.cuda()
 
-        #print('epoch_G: ', epoch_G)
         source_img = batch["cropped"]
         source_segm = batch["cropped_segm"]
         true_im = batch["img",0]
@@ -645,7 +557,6 @@ for epoch in range(opt.num_epochs):
         source_segm = source_segm.cuda()
         true_im = true_im.cuda()
         true_segm = true_segm.cuda()
-        #print(true_segm.shape)
         masked_target = mask_segm(true_segm, source_segm).to(torch.int64)
         orj_left = true_im[:,:,:, 0:128]
         orj_right = true_im[:,:,:, -128:]
@@ -674,13 +585,10 @@ for epoch in range(opt.num_epochs):
 
         #GET DISCRIMINATOR RESULTS
         # for the calculation of the Gen loss
-        # az oncekinin son sekiz tanesini alsak da olurdu aslinda
         lbl_est_left = left_D(fake_left)
         lbl_est_right = right_D(fake_right)
 
         optimizer_G.zero_grad()
-        #print(torch.squeeze(gen_fake_seg).shape)
-        #print(torch.squeeze(masked_target).shape)
 
         _, masked_target = masked_target.max(dim=1)
         #nn.CrossEntropyLoss()(out, Variable(targets))
@@ -688,12 +596,8 @@ for epoch in range(opt.num_epochs):
         loss_seg = weight_segmentation*loss_seg # Ensure that weights are scaled appropriately
         loss_seg = torch.mean(loss_seg) # Sums the loss per image
 
-        #loss_seg = F.cross_entropy(torch.squeeze(gen_fake_seg), torch.squeeze(masked_target))
-
         loss_D_left_g = adversarial_loss(torch.squeeze(lbl_est_left), torch.squeeze(true_lbl))
         loss_D_right_g = adversarial_loss(torch.squeeze(lbl_est_right), torch.squeeze(true_lbl))
-
-        #print(loss_seg.requires_grad)
 
         loss_recon_left = nn.MSELoss(reduction='none')(gen_fake_left, orj_left)
         loss_recon_left = weight_rec_left*loss_recon_left # Ensure that weights are scaled appropriately
@@ -701,9 +605,6 @@ for epoch in range(opt.num_epochs):
         loss_recon_right = nn.MSELoss(reduction='none')(gen_fake_right, orj_right)
         loss_recon_right = weight_rec_right*loss_recon_right # Ensure that weights are scaled appropriately
         loss_recon_right = torch.mean(loss_recon_right) # Sums the loss per image
-
-        #loss_recon_left = F.mse_loss(gen_fake_left, orj_left)
-        #loss_recon_right = F.mse_loss(gen_fake_right, orj_right)
 
         loss = opt.lambda_seg * loss_seg + opt.lambda_disc * loss_D_left_g + opt.lambda_disc * loss_D_right_g + opt.lambda_recon*loss_recon_left + opt.lambda_recon*loss_recon_right
         
@@ -733,10 +634,5 @@ for epoch in range(opt.num_epochs):
 
     if best_val_loss is None or val_loss < best_val_loss: 
         best_val_loss = val_loss
-        #save_model(left_D, right_D, generator_G)
-
-    
-
-# log
 
 
