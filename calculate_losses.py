@@ -16,7 +16,7 @@ from torch.autograd import Variable
 import torch.nn.functional as F
 import math
 from scipy.stats import entropy
-
+from scipy.spatial.distance import cityblock, euclidean
 ###############Frechet inception distance methods #################
 
 def to_cuda(elements):
@@ -175,8 +175,8 @@ def preprocess_image(im):
     """
     assert im.shape[2] == 3
     assert len(im.shape) == 3
-    if im.dtype == np.uint8:
-        im = im.astype(np.float32) / 255
+    #if im.dtype == np.uint8:
+    im = im.astype(np.float32) / 255
     im = cv2.resize(im, (299, 299))
     im = np.rollaxis(im, axis=2)
     im = torch.from_numpy(im)
@@ -238,14 +238,48 @@ def load_images(path):
             image_paths.append(impath)
     first_image = cv2.imread(image_paths[0])
     H,W = first_image.shape[:2] 
-    H= int(H/2)
-    W= int(W/2)
+    #H= int(H/4)
+    #W= int(W/4)
     image_paths.sort()
     image_paths = image_paths
-    final_images = np.zeros((len(image_paths), H, W, 3), dtype=first_image.dtype)
+    final_images = np.zeros((len(image_paths), H, 256, 3), dtype=np.float32)
     for idx, impath in enumerate(image_paths):
         im = cv2.imread(impath)
-        im= cv2.resize(im, (1024,512))
+        im= im.astype(np.float32)
+        im= cv2.resize(im, (512,256))
+        im = np.concatenate([im[:, 0:128 ,:], im[:,384:,:]], axis=1)
+        im = im[:, :, ::-1] # Convert from BGR to RGB
+        assert im.dtype == final_images.dtype
+        final_images[idx] = im
+    return final_images
+
+def load_images_orig(path):
+    """ Loads all .png or .jpg images from a given path
+    Warnings: Expects all images to be of same dtype and shape.
+    Args:
+        path: relative path to directory
+    Returns:
+        final_images: np.array of image dtype and shape.
+    """
+    image_paths = []
+    image_extensions = ["png"]
+    for ext in image_extensions:
+        print("Looking for images in", os.path.join(path, "*.{}".format(ext)))
+        for impath in glob.glob(os.path.join(path, "*.{}".format(ext))):
+            image_paths.append(impath)
+    first_image = cv2.imread(image_paths[0])
+    H,W = first_image.shape[:2] 
+    H= int(H/4)
+    W= int(W/4)
+    image_paths.sort()
+    image_paths = image_paths
+    #image_paths= image_paths[0:260]
+    final_images = np.zeros((len(image_paths), H, 256, 3), dtype=np.float32)
+    for idx, impath in enumerate(image_paths):
+        im = cv2.imread(impath)
+        im= im.astype(np.float32)
+        im= cv2.resize(im, (512,256))
+        im = np.concatenate([im[:, 0:128 ,:], im[:,384:,:]], axis=1)
         im = im[:, :, ::-1] # Convert from BGR to RGB
         assert im.dtype == final_images.dtype
         final_images[idx] = im
@@ -257,7 +291,8 @@ def load_images(path):
 def l1_loss(img1,img2):
     l1_loss=0
     for i, j in zip(img1,img2):
-        l1_loss += np.sum(np.abs(i.flatten()-j.flatten()))
+        
+        l1_loss += cityblock(i.flatten(),j.flatten())
 
     return l1_loss
 
@@ -265,7 +300,7 @@ def l1_loss(img1,img2):
 def l2_loss(img1,img2):
     l2_loss=0
     for i, j in zip(img1,img2):
-        l2_loss += np.sqrt(np.dot(i.flatten()-j.flatten(), i.flatten()-j.flatten()))
+        l2_loss += euclidean(i.flatten(), j.flatten())
     return l2_loss
 
 
@@ -318,15 +353,17 @@ def calculate_losses(args):
     #calculate desired losses and print them
     if args.pred_path==None:
     #calculate losses for reconstruction of the images
-        images = load_images(args.orig_img_path)
+        images = load_images_orig(args.orig_img_path)
         reconstructions = load_images(args.rec_path)
+        print("original image shapes:" , images.shape)
+        print("generated image shapes:", reconstructions.shape)
         fid_score= calculate_fid(images,reconstructions, args.batch_size)
         print("Frechet inception distance is: ",fid_score)
         l1= l1_loss(images,reconstructions)
         l2= l2_loss(images,reconstructions)
         print("L1 loss on image reconstruction is: ", l1)
         print("L2 loss on image reconstruction is: ", l2)
-        inc_score= inception_score(images, batch_size =4)
+        inc_score= inception_score(reconstructions, batch_size =4)
         print("Inception score for reconstructions is: ", inc_score)
     else:
     #calculate segmentation losses as well

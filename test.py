@@ -9,9 +9,30 @@ from fcn_model import fcn8s
 import cityscapes_seg_loader as sloader
 from gan_model import ExPGenerator
 import torch.nn.functional as F
+import torchvision
+from torchvision import transforms
+from PIL import Image
+
+
+CITYSCAPES_MEAN = [0.28689554, 0.32513303, 0.28389177]
+CITYSCAPES_STD = [0.18696375, 0.19017339, 0.18720214]
+
+def img_denorm(img):
+    mean = np.asarray([0.28689554, 0.32513303, 0.28389177])
+    std = np.asarray([0.18696375, 0.19017339, 0.18720214])
+        
+    denormalize = transforms.Normalize((-1 * mean / std), (1.0 / std))
+
+    res = img.squeeze(0)
+    res = denormalize(res)
+
+    #Image needs to be clipped since the denormalize function will map some
+    #values below 0 and above 1
+    res = torch.clamp(res, 0, 1)
+    return(res)
+
 def test(args):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
- 
 
 #set up image and label paths
     print("Read Input Images from : {}".format(args.img_path))
@@ -33,6 +54,8 @@ def test(args):
     #prepare image for inference
             orig_size = img.shape[:-1]
             img_full = misc.imresize(img, (256, 512))
+            for_cropped = img_full[:,128:384, :]
+            for_cropped = Image.fromarray(np.uint8(for_cropped))
             img= img_full[:,128:384, :]
             img = img[:, :, ::-1]
             img = img.astype(np.float64)
@@ -73,18 +96,23 @@ def test(args):
             seg_crop= pred
 
     #Load generator to generate images
-            generator_G= ExPGenerator()
+            generator_G= ExPGenerator(seg_class_num=7)
+            #generator_G = torch.nn.DataParallel(generator_G, device_ids=range(torch.cuda.device_count()))
             state = (torch.load(args.gen_model_path))
             generator_G.load_state_dict(state.get('generator'))
             generator_G.eval()
             generator_G.to(device)
 
+
     #perform generation
             img_resized = torch.from_numpy(img_full).cuda()
             #seg_resized = torch.from_numpy(seg_resized).cuda()
+
+            img_crop = torchvision.transforms.Normalize(mean=CITYSCAPES_MEAN, std=CITYSCAPES_STD)(transforms.ToTensor()(for_cropped))
+            img_crop = img_crop.unsqueeze(0)
             img_crop = img_crop.cuda()
             seg_crop = torch.from_numpy(seg_crop).cuda()
-            seg_crop= torch.nn.functional.one_hot(seg_crop).permute(2,0,1).float()
+            seg_crop= torch.nn.functional.one_hot(seg_crop,7).permute(2,0,1).float()
             seg_crop= seg_crop.unsqueeze(0)
 
             orj_left = img_resized[:,:, 0:128]
@@ -93,8 +121,9 @@ def test(args):
             gen_fake_left, gen_fake_right, gen_fake_seg = generator_G(img_crop, seg_crop)
             generated= torch.cat((gen_fake_left, img_crop, gen_fake_right), dim=3)
             gen_im= generated.detach().cpu().numpy()
+            gen_im = img_denorm(generated)
             gen_im= np.squeeze(gen_im, axis=0)
-            gen_im= gen_im.transpose(1,2,0)
+            gen_im= np.transpose(gen_im.cpu().detach().numpy(), (1, 2, 0))
     #save generated images 
             if not os.path.exists(args.out_path + "/genoutputs"):
                 os.mkdir(os.path.join(os.getcwd(),args.out_path) + "/genoutputs")

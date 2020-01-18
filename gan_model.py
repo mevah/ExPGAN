@@ -15,11 +15,6 @@ import math
 import os
 from tensorboardX import SummaryWriter
 
-
-
-
-
-######## TRANSFORMS.TOTENSOR
 class CS_Dataset(torchvision.datasets.Cityscapes):
     def __init__(self,  root_folder='/cluster/scratch/oezyurty/cityscapes_data', split='train', mode='fine', target_type='semantic', transform=None, target_transform=None, transforms=None):
         super(CS_Dataset, self).__init__(root_folder,split=split,mode=mode,target_type=target_type,transform=transform,target_transform=target_transform)
@@ -33,27 +28,12 @@ class CS_Dataset(torchvision.datasets.Cityscapes):
             s = 4 * (2**ii)
             self.resize[ii] = torchvision.transforms.Resize((self.height // s, self.width // s),
                                                interpolation=self.interp)
-            #print('in transformer')
-            #print(s)
-            #print(self.height // s)
-            #print(self.width // s)
 
     def __getitem__(self, index):
         CITYSCAPES_MEAN = [0.28689554, 0.32513303, 0.28389177]
         CITYSCAPES_STD = [0.18696375, 0.19017339, 0.18720214]
         inputs = {}
         loaded_img, loaded_sgmn = super(CS_Dataset, self).__getitem__(index)
-        #print('type: ', type(loaded_img)) #<class 'PIL.Image.Image'>
-        #print('Max val: ', np.max(np.asarray(loaded_img))) #255
-
-
-        #print('#'*40)
-        #print('SEGM IN LOADER')
-        #temp_seg = np.asarray(loaded_sgmn)
-        #print(temp_seg.shape)
-        #print('max: ', temp_seg.max())
-        #print(np.argmax(temp_seg,axis=0))
-
 
         for ii in range(self.num_scales):
             inputs[("img", ii)] = self.resize[ii](loaded_img)
@@ -63,25 +43,9 @@ class CS_Dataset(torchvision.datasets.Cityscapes):
         inputs[("cropped")] = torchvision.transforms.Normalize(mean=CITYSCAPES_MEAN, std=CITYSCAPES_STD)(torchvision.transforms.ToTensor()(torchvision.transforms.CenterCrop((256,256))(inputs[("img", 0)])))
         inputs[("cropped_segm")] = torchvision.transforms.ToTensor()(torchvision.transforms.CenterCrop((256,256))(inputs[("segm", 0)]))
 
-       # inputs[("img_left")] = torchvision.transforms.ToTensor(np.array(inputs[("img",0)])[:,:-128,:]).float() 
-       # inputs[("img_right")] = torchvision.transforms.ToTensor(np.array(inputs[("img",0)])[:,128:,:]).float()
-        
-        ##inputs[("img_left")] = Image.fromarray(inputs[("img_left")])
-        ##inputs[("img_right")] = Image.fromarray(inputs[("img_right")])
-
         for iii in range(self.num_scales):
             inputs[("img", iii)] = torchvision.transforms.Normalize(mean=CITYSCAPES_MEAN, std=CITYSCAPES_STD)(torchvision.transforms.ToTensor()(inputs[("img", iii)] ))
             inputs[("segm", iii)] = torchvision.transforms.ToTensor()(inputs[("segm", iii)])
-
-            #print('denemece')
-            #print(inputs[("segm", iii)].shape)
-            #print(torch.nn.functional.one_hot(inputs[("segm", iii)].to(torch.int64), 33).shape)
-            #print(torch.nn.functional.one_hot(inputs[("segm", iii)].to(torch.int64), 33).permute(0,3,1,2).shape)
-            #print(torch.squeeze(torch.nn.functional.one_hot(inputs[("segm", iii)].to(torch.int64), 33).permute(0,3,1,2)).shape)
-
-            #print('ICERIDE')
-            #print(inputs[("segm", iii)])
-            #print(inputs[("segm", iii)].shape)
 
             inputs[("segm", iii)] = torch.squeeze(torch.nn.functional.one_hot((torch.round(inputs[("segm", iii)]*255/42)).to(torch.int64), 7).permute(0,3,1,2)).float()
 
@@ -312,7 +276,7 @@ class LeftDiscriminator(nn.Module):
             nn.LeakyReLU(0.2, inplace=True),
             nn.AvgPool2d(3), 
             nn.Flatten(),
-            nn.Linear(38400, 256), #BURAYA INPUT SIZE LAZIMMMMMMMMM
+            nn.Linear(38400, 256), 
             nn.LeakyReLU(0.2, inplace=True),
             nn.Linear(256, 1),
             nn.Sigmoid()
@@ -340,7 +304,7 @@ class RightDiscriminator(nn.Module):
             nn.LeakyReLU(0.2, inplace=True),
             nn.AvgPool2d(3), 
             nn.Flatten(),
-            nn.Linear(38400, 256), #BURAYA INPUT SIZE LAZIMMMMMMMMM
+            nn.Linear(38400, 256), 
             nn.LeakyReLU(0.2, inplace=True),
             nn.Linear(256, 1),
             nn.Sigmoid()
