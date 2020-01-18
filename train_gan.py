@@ -61,7 +61,8 @@ print('#'*50)
 print('MODEL DIRECTORY: ', model_save_dir)
 
 def save_opts(args):
-    """Save options to disk
+    """
+    Save options to disk
     """
     models_dir = model_save_dir #os.path.join(model_save_dir, "model")
     if not os.path.exists(models_dir):
@@ -70,7 +71,7 @@ def save_opts(args):
 
     with open(os.path.join(models_dir, 'opt.json'), 'w') as f:
         json.dump(to_save, f, indent=2)
-        
+
 def logging(str, log_file=opt.logfile_name, to_stdout=True):
     with open(os.path.join(model_save_dir, log_file), 'a') as f:
         f.write(str + '\n')
@@ -89,12 +90,18 @@ def to_categorical_torch(y, num_columns):
     return Variable(FloatTensor(y_cat))
 
 def write_losses_d(loss_D_left,loss_D_right):
+    """
+    Writes discriminator losses to the loss dictionary
+    """
     losses = {}
     losses["D_losses/loss_D_left"] = loss_D_left
     losses["D_losses/loss_D_right"] = loss_D_right
     return losses
 
 def write_losses_g(loss, loss_seg,loss_D_left,loss_D_right,loss_recon_left,loss_recon_right):
+    """
+    Writes generator losses to the loss dictionary
+    """
     losses = {}
     losses["G_losses/loss_seg"] = loss_seg
     losses["G_losses/loss_D_left"] = loss_D_left
@@ -104,8 +111,10 @@ def write_losses_g(loss, loss_seg,loss_D_left,loss_D_right,loss_recon_left,loss_
     losses["total_loss"] = loss
     return losses
 
-
 def call_logger(batch_idx, opt, total_step, mode="train"):
+    """
+    Checks if results will be logged to tensorboard based on the step number
+    """
     early_phase = batch_idx % opt.log_frequency == 0 and total_step < 2000
     late_phase = total_step % 2000 == 0
     return (early_phase or late_phase)
@@ -144,6 +153,10 @@ def load_model(exp_img_shape):
 
 
 def img_denorm(img):
+    """
+    Denormalizes the images obtained from the generator, by back transforming with 
+    the mean and std of the images in the Cityscapes dataset
+    """
     mean = np.asarray([0.28689554, 0.32513303, 0.28389177])
     std = np.asarray([0.18696375, 0.19017339, 0.18720214])
         
@@ -159,7 +172,7 @@ def img_denorm(img):
         
 def log_tbx(writers, mode, batch, outputs, left_weights, right_weights, gen_weights,losses_d, losses_g, total_step):
     """
-    Write an event to the tensorboard events file
+    Writes an event to the tensorboard events file
     """
     writer = writers[mode]
     for l, v in losses_d.items():
@@ -198,6 +211,9 @@ def log_tbx(writers, mode, batch, outputs, left_weights, right_weights, gen_weig
         writer.add_histogram("generator_weights/layer:{}".format(l), v, total_step)
 
 def get_weights(net):
+    """
+    Gets layer weights to bbe logged to the tensorboard
+    """
     weight= []
     for module in net.modules():
         if isinstance(module, nn.Conv2d):
@@ -207,8 +223,8 @@ def get_weights(net):
 
     return weight
 
-######## MAIN
 
+##### MAIN
 logging(str(opt))
 exp_img_shape = (3, 256, 384)
 cuda = True if torch.cuda.is_available() else False
@@ -216,9 +232,9 @@ print('cuda status: ', cuda)
 Tensor = torch.cuda.FloatTensor if cuda else torch.FloatTensor
 
 
+# initialization of the dataloaders
 train_dataset = CS_Dataset(opt.dataset_folder, split='train', mode='fine', target_type='semantic', transform=None, target_transform=None, transforms=None)
 val_dataset = CS_Dataset(opt.dataset_folder, split='val', mode='fine', target_type='semantic', transform=None, target_transform=None, transforms=None)
-
 train_loader = DataLoader(
     train_dataset, opt.batch_size, True,
     num_workers=1, pin_memory=True, drop_last=True)
@@ -228,6 +244,7 @@ val_loader = DataLoader(
     num_workers=1, pin_memory=True, drop_last=True)
 
 
+# if model_load argument is non-empty, loads the model in the specified directory before starting the training
 if opt.model_load == "":
     left_D = LeftDiscriminator(exp_img_shape)
     right_D = RightDiscriminator(exp_img_shape)
@@ -235,28 +252,35 @@ if opt.model_load == "":
 else:
     left_D, right_D, generator_G = load_model(exp_img_shape)
 
+
 if cuda:
     left_D.cuda()
     right_D.cuda()
     generator_G.cuda()
     
-    
+  
+# initialization of the optimizers  
 optimizer_G = torch.optim.Adam(generator_G.parameters(), lr=opt.lr_gen, betas=(opt.b1_gen, opt.b2_gen))
 optimizer_D_left = torch.optim.Adam(left_D.parameters(), lr=opt.lr_disc, betas=(opt.b1_disc, opt.b2_disc))
 optimizer_D_right = torch.optim.Adam(right_D.parameters(), lr=opt.lr_disc, betas=(opt.b1_disc, opt.b2_disc))
 
 adversarial_loss = torch.nn.BCELoss()
 
+
 def add_noise(ins, is_training=True, mean=0, stddev=0.01):
+    """
+    Adds noise to the 'real' images before using them in the discriminator training
+    """
     if is_training:
         noise = Variable(ins.data.new(ins.size()).normal_(mean, stddev))
         return ins + noise
     return ins
 
+# currently only returns the segmentation map obtained from the generator without masking
 def mask_segm(full_segm, cropped_segm):
     return full_segm
 
-####Define weight matrix for segmentation loss
+# defining the weight matrix for segmentation and reconstruction losses, so that the points at the transition part would be considered more when calculating the losses
 mask_row = np.zeros((1,512))
 def sigmoid(start=0,end=128, c1=0.1,c2=0):
     x = np.arange(start,end)
@@ -280,21 +304,25 @@ for mode in ["train", "val"]:
     
 best_val_loss = None
 
-#Make networks multigpu available
+# make the networks multi-gpu available
 if torch.cuda.device_count() > 1:
     print("There are", torch.cuda.device_count(), "gpus available.")
     left_D = nn.DataParallel(left_D)
     right_D= nn.DataParallel(right_D)
     generator_G = nn.DataParallel(generator_G)
 
+
+# Training mode
 print('Switched to training mode')
 for epoch in range(opt.num_epochs):
     print('#'*30)
     print('Epoch:', epoch)
-    #Switch models to training mode
+
+    # Switch models to training mode
     left_D.train()
     right_D.train()
     generator_G.train()
+
     for batch_idx, batch in enumerate(train_loader):
         weight_segmentation = mask_tensor.repeat(batch['cropped'].size(0), 256, 1)
         weight_rec_left = mask_tensor_rec_left.repeat(batch['cropped'].size(0), 3, 256, 1)
@@ -305,6 +333,7 @@ for epoch in range(opt.num_epochs):
             weight_rec_left = weight_rec_left.cuda()
             weight_rec_right = weight_rec_right.cuda()
 
+        # Discriminator training phase
         for epoch_D in range(mini_D_num_epochs):
             #print('epoch_D: ', epoch_D)
             source_img = batch["cropped"]
@@ -346,6 +375,7 @@ for epoch in range(opt.num_epochs):
         
         losses_d = write_losses_d(loss_D_left,loss_D_right)
 
+        # Generator training phase
         for epoch_G in range(mini_G_num_epochs):
             source_img = batch["cropped"]
             source_segm = batch["cropped_segm"]
@@ -383,8 +413,6 @@ for epoch in range(opt.num_epochs):
             loss_D_right_g = adversarial_loss(torch.squeeze(lbl_est_right), torch.squeeze(true_lbl))
                 
             loss_recon_left = nn.MSELoss(reduction='none')(gen_fake_left, orj_left)
-            #print(loss_recon_left.shape)
-            #print(weight_rec_left.shape)
             loss_recon_left = weight_rec_left*loss_recon_left # Ensure that weights are scaled appropriately
             loss_recon_left = torch.mean(loss_recon_left) # Sums the loss per image
             loss_recon_right = nn.MSELoss(reduction='none')(gen_fake_right, orj_right)
@@ -406,8 +434,8 @@ for epoch in range(opt.num_epochs):
             outputs['generated_segs'] = gen_fake_seg
             log_tbx(writers, "train", batch, outputs, left_disc_weights, right_disc_weights,gen_weights, losses_d, losses_g, total_step)
 
-    #IMPLEMENT VALIDATION
-    #Switch models to evaluation mode
+    # VALIDATION
+    # Switch models to evaluation mode
     print('Switched to eval mode')
     left_D.eval()
     right_D.eval()
@@ -456,7 +484,7 @@ for epoch in range(opt.num_epochs):
         lbl_est_right = right_D(right_imgs)
         loss_D_right =adversarial_loss(torch.squeeze(lbl_est_right), torch.squeeze(lbls))
 
-        #GET DISCRIMINATOR RESULTS
+        # get discriminator outputs
         # for the calculation of the gen loss
         lbl_est_left = left_D(fake_left)
         lbl_est_right = right_D(fake_right)
@@ -496,6 +524,7 @@ for epoch in range(opt.num_epochs):
 
     log_tbx(writers, "val", batch, outputs, left_disc_weights, right_disc_weights,gen_weights, losses_d, losses_g, total_step)
 
+    # save model every 5 epochs, or if the current validation loss is smaller than the best validation loss so far
     if epoch % 5 == 0 or val_loss < best_val_loss:
         if val_loss < best_val_loss:
             save_model(left_D, right_D, generator_G, epoch, best_model=True)
